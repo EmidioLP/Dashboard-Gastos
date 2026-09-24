@@ -37,7 +37,9 @@ import { reducer } from './reducer'
 
 export type Action =
   | { type: 'transaction/save'; transaction: Transaction }
+  | { type: 'transaction/saveMany'; transactions: Transaction[] }
   | { type: 'transaction/delete'; id: string }
+  | { type: 'transaction/deleteMany'; ids: string[] }
   | { type: 'transaction/togglePaid'; id: string }
   | { type: 'recurring/save'; recurring: Recurring }
   | { type: 'recurring/delete'; id: string }
@@ -97,8 +99,14 @@ async function applyAction(uid: string, state: FinanceState, action: Action) {
   switch (action.type) {
     case 'transaction/save':
       return setDoc(ref('transactions', action.transaction.id), withoutId(action.transaction))
+    case 'transaction/saveMany':
+      return commitOps(
+        action.transactions.map((t): Op => ({ kind: 'set', ref: ref('transactions', t.id), data: withoutId(t) })),
+      )
     case 'transaction/delete':
       return deleteDoc(ref('transactions', action.id))
+    case 'transaction/deleteMany':
+      return commitOps(action.ids.map((id): Op => ({ kind: 'delete', ref: ref('transactions', id) })))
     case 'transaction/togglePaid': {
       const t = state.transactions.find((x) => x.id === action.id)
       if (t) return updateDoc(ref('transactions', t.id), { paid: !t.paid })

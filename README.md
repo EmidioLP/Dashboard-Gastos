@@ -20,6 +20,7 @@ Aplicação web para acompanhar as finanças do mês: saldo, gastos por categori
 - **Onde estou gastando**: ranking de categorias com valor e percentual. Clicar numa categoria abre os lançamentos filtrados.
 - **Contas a pagar**: pendências do mês, com as atrasadas destacadas.
 - **Lançamentos recorrentes**: salário, aluguel e assinaturas são cadastrados uma vez e aparecem todo mês, cada mês com seu próprio status de pago. Aceita valor diferente em um mês específico (ex.: conta de luz), pausa e data de término.
+- **Compras parceladas**: informe o valor total ou o da parcela, o número de parcelas e a data da 1ª. Cada parcela cai no mês certo (com etiqueta "3/10") e os centavos da divisão ficam na última. Um painel mostra os parcelamentos em andamento e quanto falta pagar.
 - **Lançamentos**: busca e filtros por tipo, categoria e status; marcar como pago, editar e excluir.
 - **Categorias personalizáveis** (nome, emoji, cor) e **backup/importação em JSON**.
 - **Tema claro/escuro** automático, **responsivo** e **funciona offline**.
@@ -47,6 +48,7 @@ Aplicação web para acompanhar as finanças do mês: saldo, gastos por categori
 ## Decisões técnicas
 
 - **Recorrências como instâncias virtuais.** Uma assinatura não é copiada para cada mês. `getMonthItems()` (`src/lib/selectors.ts`) gera as ocorrências do mês a partir do cadastro mais um mapa de status por mês (`pago`, `valor só neste mês`, `pulado`). Não há duplicação, editar o cadastro vale para os meses seguintes, e remover só um mês não afeta os outros.
+- **Parcelas como lançamentos reais.** Uma compra em 10x gera 10 transações ligadas por um `groupId` (`src/lib/installments.ts`). Assim, totais, gráficos e contas a pagar funcionam sem código especial, cada parcela tem o próprio status de pago, e dá para excluir "só esta", "esta e as próximas" ou "todas".
 - **Store independente do backend.** Os componentes usam só `useFinance()` e `useDispatch(action)`. Existem duas implementações da mesma API (`src/store/FinanceStore.tsx`):
   - **Firestore**: listeners em tempo real e cada ação vira uma gravação (lotes para operações em massa).
   - **Demonstração**: um `useReducer` em memória (`src/store/reducer.ts`) com dados gerados (`src/store/demoData.ts`).

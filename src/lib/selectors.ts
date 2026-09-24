@@ -1,5 +1,5 @@
 import { getDaysInMonth } from 'date-fns'
-import type { Category, FinanceState, MonthItem, Recurring } from '../types'
+import type { Category, FinanceState, MonthItem, Recurring, Transaction } from '../types'
 import { parseMonth, today } from './format'
 
 export const isRecurringInMonth = (r: Recurring, month: string) =>
@@ -18,6 +18,7 @@ export function getMonthItems(state: FinanceState, month: string): MonthItem[] {
       categoryId: t.categoryId,
       date: t.date,
       paid: t.paid,
+      installment: t.installment,
     }))
 
   const daysInMonth = getDaysInMonth(parseMonth(month))
@@ -106,3 +107,45 @@ export const FALLBACK_CATEGORY: Category = { id: '__none', name: 'Sem categoria'
 
 export const findCategory = (categories: Category[], id: string) =>
   categories.find((c) => c.id === id) ?? FALLBACK_CATEGORY
+
+export interface InstallmentPlan {
+  groupId: string
+  description: string
+  categoryId: string
+  count: number
+  paidCount: number
+  total: number
+  remaining: number
+  firstDate: string
+  lastDate: string
+  transactions: Transaction[]
+}
+
+/** Groups installment transactions by purchase; plans with pending installments come first. */
+export function getInstallmentPlans(state: FinanceState): InstallmentPlan[] {
+  const groups = new Map<string, Transaction[]>()
+  for (const t of state.transactions) {
+    if (!t.installment) continue
+    const list = groups.get(t.installment.groupId) ?? []
+    list.push(t)
+    groups.set(t.installment.groupId, list)
+  }
+  return [...groups.entries()]
+    .map(([groupId, list]) => {
+      const sorted = list.sort((a, b) => a.installment!.index - b.installment!.index)
+      const last = sorted[sorted.length - 1]
+      return {
+        groupId,
+        description: sorted[0].description,
+        categoryId: sorted[0].categoryId,
+        count: sorted.length,
+        paidCount: sorted.filter((t) => t.paid).length,
+        total: sorted.reduce((sum, t) => sum + t.amount, 0),
+        remaining: sorted.filter((t) => !t.paid).reduce((sum, t) => sum + t.amount, 0),
+        firstDate: sorted[0].date,
+        lastDate: last.date,
+        transactions: sorted,
+      }
+    })
+    .sort((a, b) => Number(a.remaining === 0) - Number(b.remaining === 0) || a.lastDate.localeCompare(b.lastDate))
+}

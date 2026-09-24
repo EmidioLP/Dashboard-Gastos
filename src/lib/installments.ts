@@ -1,0 +1,46 @@
+import { addMonths, format, parse } from 'date-fns'
+import type { Transaction, TxType } from '../types'
+import { today, uid } from './format'
+
+export type InstallmentValueMode = 'total' | 'parcela'
+
+export const MAX_INSTALLMENTS = 72
+
+interface BuildOptions {
+  base: { type: TxType; description: string; categoryId: string }
+  valueMode: InstallmentValueMode
+  value: number
+  count: number
+  firstDate: string // yyyy-MM-dd
+  markPastAsPaid: boolean
+}
+
+/** Splits an amount into `count` parts in cents; the last part absorbs the rounding remainder. */
+export function splitAmount(value: number, valueMode: InstallmentValueMode, count: number): number[] {
+  if (valueMode === 'parcela') return Array.from({ length: count }, () => value)
+  const totalCents = Math.round(value * 100)
+  const partCents = Math.floor(totalCents / count)
+  return Array.from({ length: count }, (_, i) =>
+    i === count - 1 ? (totalCents - partCents * (count - 1)) / 100 : partCents / 100,
+  )
+}
+
+/** Same day on each following month; day 31 falls back to the last day of shorter months. */
+export function installmentDates(firstDate: string, count: number): string[] {
+  const first = parse(firstDate, 'yyyy-MM-dd', new Date())
+  return Array.from({ length: count }, (_, i) => format(addMonths(first, i), 'yyyy-MM-dd'))
+}
+
+export function buildInstallments({ base, valueMode, value, count, firstDate, markPastAsPaid }: BuildOptions): Transaction[] {
+  const groupId = uid()
+  const amounts = splitAmount(value, valueMode, count)
+  const now = today()
+  return installmentDates(firstDate, count).map((date, i) => ({
+    id: uid(),
+    ...base,
+    amount: amounts[i],
+    date,
+    paid: markPastAsPaid && date <= now,
+    installment: { groupId, index: i + 1, total: count },
+  }))
+}

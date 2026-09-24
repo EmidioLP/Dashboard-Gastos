@@ -259,3 +259,14 @@ input[type='color'] { width: 40px; height: 38px; padding: 3px; cursor: pointer; 
   margin-top: 8px; padding: 8px 12px 8px 16px; border-radius: 8px; font-size: 0.875rem;
   background: var(--warn-bg); color: var(--text);
 }
+
+/* Installments */
+.installment-preview {
+  margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2);
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 0.875rem;
+}
+.installment-preview span { color: var(--text-secondary); }
+.progress { display: block; height: 4px; margin-top: 6px; background: var(--surface-2); border-radius: 99px; max-width: 240px; }
+.progress span { display: block; height: 100%; background: var(--series-1); border-radius: 99px; }
+.finished-plans { margin-top: 8px; }
+.finished-plans summary { cursor: pointer; color: var(--text-secondary); font-size: 0.875rem; padding: 6px 4px; }

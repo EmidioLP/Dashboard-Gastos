@@ -7,6 +7,13 @@ export interface Category {
   icon: string
 }
 
+/** Links the transactions that make up one purchase paid in installments. */
+export interface Installment {
+  groupId: string
+  index: number // 1-based
+  total: number
+}
+
 export interface Transaction {
   id: string
   type: TxType
@@ -15,6 +22,7 @@ export interface Transaction {
   categoryId: string
   date: string // yyyy-MM-dd
   paid: boolean
+  installment?: Installment
 }
 
 export interface Recurring {
@@ -57,4 +65,5 @@ export interface MonthItem {
   categoryId: string
   date: string
   paid: boolean
+  installment?: Installment
 }

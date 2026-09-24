@@ -57,6 +57,11 @@ export function ItemList({ items, month, emptyText = 'Nenhum lançamento.', comp
                       ↻ mensal
                     </span>
                   )}
+                  {item.installment && (
+                    <span className="tag" title={`Parcela ${item.installment.index} de ${item.installment.total}`}>
+                      {item.installment.index}/{item.installment.total}
+                    </span>
+                  )}
                 </span>
                 <span className="item-meta">
                   {cat.name} · {formatDay(item.date)}
@@ -94,8 +99,43 @@ export function ItemList({ items, month, emptyText = 'Nenhum lançamento.', comp
 }
 
 function DeleteDialog({ item, month, onClose }: { item: MonthItem; month: string; onClose: () => void }) {
-  const { recurring } = useFinance()
+  const { recurring, transactions } = useFinance()
   const dispatch = useDispatch()
+
+  if (item.installment) {
+    const { groupId, index, total } = item.installment
+    const group = transactions.filter((t) => t.installment?.groupId === groupId)
+    const remove = (ids: string[]) => {
+      dispatch({ type: 'transaction/deleteMany', ids })
+      onClose()
+    }
+    return (
+      <Modal title="Excluir parcela" onClose={onClose}>
+        <p>
+          <strong>{item.description}</strong> é a parcela {index} de {total}. O que deseja excluir?
+        </p>
+        <div className="choice-list">
+          <button className="btn" onClick={() => remove([item.sourceId])}>
+            Só esta parcela
+          </button>
+          {index < total && (
+            <button
+              className="btn btn-danger"
+              onClick={() => remove(group.filter((t) => t.installment!.index >= index).map((t) => t.id))}
+            >
+              Esta e as próximas
+            </button>
+          )}
+          <button className="btn btn-danger" onClick={() => remove(group.map((t) => t.id))}>
+            Todas as parcelas
+          </button>
+          <button className="btn" onClick={onClose}>
+            Cancelar
+          </button>
+        </div>
+      </Modal>
+    )
+  }
 
   if (item.source === 'transaction') {
     return (

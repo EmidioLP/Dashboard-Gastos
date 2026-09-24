@@ -1,6 +1,7 @@
 import { getDaysInMonth } from 'date-fns'
 import type { FinanceState, Recurring, RecurringStatusMap, Transaction, TxType } from '../types'
 import { currentMonth, parseMonth, shiftMonth, today } from '../lib/format'
+import { buildInstallments } from '../lib/installments'
 import { DEFAULT_CATEGORIES } from './defaults'
 
 // Fictional numbers for the public demo. They are not related to anyone's real finances.
@@ -83,6 +84,26 @@ export function createDemoState(): FinanceState {
   // A tax installment still to pay at the end of the current month.
   const lastDay = String(getDaysInMonth(parseMonth(now))).padStart(2, '0')
   push('expense', 'IPVA — parcela', 'impostos', `${now}-${lastDay}`, 412.37, false)
+
+  // Installment purchases: one halfway through, one that started this month.
+  transactions.push(
+    ...buildInstallments({
+      base: { type: 'expense', description: 'Notebook', categoryId: 'educacao' },
+      valueMode: 'total',
+      value: 4299,
+      count: 10,
+      firstDate: `${months[0]}-15`,
+      markPastAsPaid: true,
+    }),
+    ...buildInstallments({
+      base: { type: 'expense', description: 'Geladeira', categoryId: 'moradia' },
+      valueMode: 'parcela',
+      value: 289.9,
+      count: 12,
+      firstDate: `${now}-08`,
+      markPastAsPaid: true,
+    }),
+  )
 
   return { version: 1, categories: DEFAULT_CATEGORIES, transactions, recurring, recurringStatus }
 }

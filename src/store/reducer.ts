@@ -10,8 +10,14 @@ export function reducer(state: FinanceState, action: Action): FinanceState {
   switch (action.type) {
     case 'transaction/save':
       return { ...state, transactions: upsert(state.transactions, action.transaction) }
+    case 'transaction/saveMany':
+      return { ...state, transactions: action.transactions.reduce(upsert, state.transactions) }
     case 'transaction/delete':
       return { ...state, transactions: state.transactions.filter((t) => t.id !== action.id) }
+    case 'transaction/deleteMany': {
+      const ids = new Set(action.ids)
+      return { ...state, transactions: state.transactions.filter((t) => !ids.has(t.id)) }
+    }
     case 'transaction/togglePaid':
       return {
         ...state,
