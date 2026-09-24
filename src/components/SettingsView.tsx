@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { Category } from '../types'
-import { useDispatch, useFinance, isFinanceState } from '../store/FinanceStore'
+import { useDispatch, useFinance, useIsDemo, isFinanceState } from '../store/FinanceStore'
 import { OTHER_CATEGORY_ID } from '../store/defaults'
 import { today, uid } from '../lib/format'
 import { Modal } from './Modal'
@@ -90,6 +90,7 @@ function CategoryManager() {
 
 function BackupSection() {
   const state = useFinance()
+  const isDemo = useIsDemo()
   const dispatch = useDispatch()
   const fileInput = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState('')
@@ -123,7 +124,9 @@ function BackupSection() {
         <h2>Dados e backup</h2>
       </header>
       <p className="hint">
-        Seus dados ficam salvos na sua conta do Firebase e sincronizam entre dispositivos. Você pode exportar uma cópia em JSON a qualquer momento.
+        {isDemo
+          ? 'Na demonstração nada é salvo: os dados são fictícios, ficam só na memória desta aba e voltam ao original ao recarregar.'
+          : 'Seus dados ficam salvos na sua conta do Firebase e sincronizam entre dispositivos. Você pode exportar uma cópia em JSON a qualquer momento.'}
       </p>
       <div className="button-row">
         <button className="btn" onClick={exportJson}>

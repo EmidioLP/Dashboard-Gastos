@@ -20,3 +20,9 @@ Thumbs.db
 .vscode/
 .idea/
 *.tsbuildinfo
+
+# exported backups contain real financial data — never commit
+gastos-backup-*.json
+*.backup.json
+backup*.json
+docs/private/

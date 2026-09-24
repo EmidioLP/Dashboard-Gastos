@@ -1,4 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   FieldPath,
   collection,
@@ -20,8 +30,10 @@ import type {
   RecurringStatusMap,
   Transaction,
 } from '../types'
-import { db } from '../lib/firebase'
+import { firebase } from '../lib/firebase'
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from './defaults'
+import { createDemoState } from './demoData'
+import { reducer } from './reducer'
 
 export type Action =
   | { type: 'transaction/save'; transaction: Transaction }
@@ -44,6 +56,7 @@ type Op = { kind: 'set'; ref: DocumentReference; data: object } | { kind: 'delet
 
 /** Firestore batches hold at most 500 writes. */
 async function commitOps(ops: Op[]) {
+  const { db } = firebase()
   for (let i = 0; i < ops.length; i += 450) {
     const batch = writeBatch(db)
     for (const op of ops.slice(i, i + 450)) {
@@ -69,6 +82,7 @@ export function isFinanceState(value: unknown): value is FinanceState {
 }
 
 async function applyAction(uid: string, state: FinanceState, action: Action) {
+  const { db } = firebase()
   const col = (name: CollectionName) => collection(db, 'users', uid, name)
   const ref = (name: CollectionName, id: string) => doc(db, 'users', uid, name, id)
 
@@ -148,6 +162,7 @@ async function applyAction(uid: string, state: FinanceState, action: Action) {
 interface Store {
   state: FinanceState
   dispatch: Dispatch
+  isDemo: boolean
 }
 
 const StoreContext = createContext<Store | null>(null)
@@ -170,6 +185,7 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
   const seeded = useRef(false)
 
   useEffect(() => {
+    const { db } = firebase()
     const markLoaded = (name: CollectionName) => setLoaded((prev) => (prev.has(name) ? prev : new Set(prev).add(name)))
     const onError = (e: Error) => setError(`Erro ao carregar dados: ${e.message}`)
     const col = (name: CollectionName) => collection(db, 'users', uid, name)
@@ -231,7 +247,7 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
     [uid],
   )
 
-  const store = useMemo(() => ({ state, dispatch }), [state, dispatch])
+  const store = useMemo(() => ({ state, dispatch, isDemo: false }), [state, dispatch])
 
   if (loaded.size < COLLECTIONS.length && !error) return <>{loading}</>
 
@@ -250,6 +266,13 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
   )
 }
 
+/** Public demo: fictional data kept only in memory, never sent anywhere. */
+export function DemoFinanceProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, undefined, createDemoState)
+  const store = useMemo(() => ({ state, dispatch, isDemo: true }), [state])
+  return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
+}
+
 function useStore() {
   const store = useContext(StoreContext)
   if (!store) throw new Error('useFinance/useDispatch must be used inside FinanceProvider')
@@ -258,3 +281,4 @@ function useStore() {
 
 export const useFinance = () => useStore().state
 export const useDispatch = () => useStore().dispatch
+export const useIsDemo = () => useStore().isDemo

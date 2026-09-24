@@ -1,78 +1,106 @@
-# 💰 Dashboard de Gastos
+# 💰 Meus Gastos — dashboard de finanças pessoais
 
-Dashboard pessoal para acompanhar as finanças do mês: saldo (receitas − despesas), gastos por categoria, assinaturas e contas fixas recorrentes, impostos e contas a pagar.
+Aplicação web para acompanhar as finanças do mês: saldo, gastos por categoria, assinaturas e contas fixas, impostos e contas a pagar, com sincronização entre dispositivos e login com Google.
 
-Feito com **React + Vite + TypeScript**, **Recharts** e **Firebase** (Auth com Google, Firestore e Hosting).
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-Auth%20%C2%B7%20Firestore%20%C2%B7%20Hosting-FFCA28?logo=firebase&logoColor=black)
+
+**▶ [Ver demonstração](https://SEU-PROJETO.web.app/?demo)**: abre o app completo com **dados fictícios**, sem login e sem salvar nada.
+
+![Visão geral](docs/screenshots/visao-geral.png)
+
+> Todos os valores mostrados neste README e na demonstração são fictícios.
 
 ## Funcionalidades
 
-- **Visão geral**: saldo do mês, receitas, despesas (comparadas ao mês anterior), total a pagar, ranking de gastos por categoria, gráfico de gastos por dia e contas pendentes/atrasadas.
-- **Lançamentos**: lista do mês com busca e filtros; marcar como pago, editar e excluir.
-- **Recorrentes**: assinaturas, contas fixas e salário aparecem automaticamente todo mês, com status de pago por mês, valor diferente em um mês específico, pausa e data de término.
-- **Configurações**: categorias personalizáveis (nome, emoji, cor) e backup/importação em JSON.
-- Sincroniza entre dispositivos e funciona offline (cache local do Firestore).
+- **Saldo do mês** (receitas − despesas), com o percentual da receita já gasto e comparação com o mês anterior.
+- **Onde estou gastando**: ranking de categorias com valor e percentual. Clicar numa categoria abre os lançamentos filtrados.
+- **Contas a pagar**: pendências do mês, com as atrasadas destacadas.
+- **Lançamentos recorrentes**: salário, aluguel e assinaturas são cadastrados uma vez e aparecem todo mês, cada mês com seu próprio status de pago. Aceita valor diferente em um mês específico (ex.: conta de luz), pausa e data de término.
+- **Lançamentos**: busca e filtros por tipo, categoria e status; marcar como pago, editar e excluir.
+- **Categorias personalizáveis** (nome, emoji, cor) e **backup/importação em JSON**.
+- **Tema claro/escuro** automático, **responsivo** e **funciona offline**.
 
-## Segurança
+| Lançamentos | Recorrentes |
+|---|---|
+| ![Lançamentos](docs/screenshots/lancamentos.png) | ![Recorrentes](docs/screenshots/recorrentes.png) |
 
-O repositório é público, então **nenhuma credencial ou dado pessoal fica no código**:
+| Novo lançamento | Tema escuro | Celular |
+|---|---|---|
+| ![Novo lançamento](docs/screenshots/novo-lancamento.png) | ![Tema escuro](docs/screenshots/visao-geral-escuro.png) | ![Celular](docs/screenshots/celular.png) |
 
-- A config do Firebase fica em `.env.local` (ignorado pelo Git). A config web do Firebase não é um segredo — ela vai no JavaScript publicado — quem protege os dados são as regras do Firestore.
-- As regras (`firestore.rules`) só permitem acesso a contas presentes na coleção `allowed/{uid}`, e cada conta só acessa `users/{uid}/…`. Essa allowlist é criada manualmente no console e **não pode ser gravada pelo app**, então ninguém consegue se autorizar sozinho, mesmo logando com Google.
-- `.firebaserc` (ID do projeto) também fica fora do Git.
+## Stack
 
-## Configuração
+| Camada | Tecnologia |
+|---|---|
+| Interface | React 19, TypeScript, CSS puro com variáveis (tema claro/escuro) |
+| Build | Vite 8 (Rolldown), com code-splitting de Firebase e gráficos |
+| Gráficos | Recharts |
+| Datas e moeda | date-fns (pt-BR), `Intl.NumberFormat` (BRL) |
+| Backend | Firebase Authentication (Google), Cloud Firestore, Firebase Hosting |
+| Testes | Playwright ponta a ponta contra os Firebase Emulators |
 
-Pré-requisitos: Node 20+ e uma conta Google.
+## Decisões técnicas
 
-1. **Instale as dependências**
-   ```bash
-   npm install
-   ```
-2. **Crie o projeto no [console do Firebase](https://console.firebase.google.com/)**
-   - *Authentication → Sign-in method*: ative **Google**.
-   - *Firestore Database*: crie o banco em **modo de produção**.
-   - *Configurações do projeto → Seus apps*: registre um app **Web** e copie a config.
-3. **Configure o ambiente**
-   ```bash
-   cp .env.example .env.local        # preencha com a config do app Web
-   npx firebase login
-   npx firebase use --add            # escolha o projeto (gera .firebaserc, ignorado pelo Git)
-   ```
-4. **Publique as regras de segurança**
-   ```bash
-   npx firebase deploy --only firestore:rules
-   ```
-5. **Libere sua conta**
-   - Rode `npm run dev`, abra o endereço mostrado e entre com Google.
-   - A tela "Conta não autorizada" mostra seu **UID**. No console, em *Firestore*, crie a coleção `allowed` com um documento cujo **ID é esse UID** (pode ficar sem campos).
-   - Recarregue a página.
+- **Recorrências como instâncias virtuais.** Uma assinatura não é copiada para cada mês. `getMonthItems()` (`src/lib/selectors.ts`) gera as ocorrências do mês a partir do cadastro mais um mapa de status por mês (`pago`, `valor só neste mês`, `pulado`). Não há duplicação, editar o cadastro vale para os meses seguintes, e remover só um mês não afeta os outros.
+- **Store independente do backend.** Os componentes usam só `useFinance()` e `useDispatch(action)`. Existem duas implementações da mesma API (`src/store/FinanceStore.tsx`):
+  - **Firestore**: listeners em tempo real e cada ação vira uma gravação (lotes para operações em massa).
+  - **Demonstração**: um `useReducer` em memória (`src/store/reducer.ts`) com dados gerados (`src/store/demoData.ts`).
+- **Firebase inicializado sob demanda.** A demo não carrega a conexão com o Firebase e não faz nenhuma requisição externa (verificado nos testes).
+- **Offline e resposta imediata.** Com o cache persistente do Firestore, as alterações aparecem na hora e sincronizam quando a conexão volta.
+- **Modelo de dados por subcoleções** (`users/{uid}/transactions|recurring|categories`), para não esbarrar no limite de 1 MB por documento com o passar dos anos.
 
-## Deploy (Firebase Hosting)
+## Privacidade e segurança
+
+O código é público, mas os dados financeiros reais não são:
+
+- **Nenhum dado real no repositório.** Screenshots e demonstração usam valores fictícios. Os dados reais ficam apenas no Firestore, e backups exportados são ignorados pelo Git.
+- **Acesso restrito por regras** (`firestore.rules`). Só contas presentes numa *allowlist* (`allowed/{uid}`) acessam o app, e cada conta só lê e grava `users/{uid}/…`. A allowlist é criada manualmente no console e o app não consegue gravá-la, então ninguém se autoriza sozinho, mesmo logando com Google.
+- **Validação no servidor**: tipos e limites de campos são checados nas regras.
+- **Nenhuma configuração no Git**: a config do Firebase fica em `.env.local` e o ID do projeto em `.firebaserc`, ambos ignorados.
+- **Testado**: nos emuladores, um segundo usuário tentando ler os dados do dono, ler os próprios dados sem estar na allowlist ou se incluir nela recebe `403`.
+
+## Rodando localmente
+
+Pré-requisito: Node 20+.
 
 ```bash
-npm run deploy
+npm install
+npm run dev          # abre sem Firebase configurado → botão "Ver demonstração"
 ```
 
-O site fica em `https://<seu-projeto>.web.app`.
-
-## Desenvolvimento com emuladores
-
-Para testar sem tocar nos dados reais (requer Java):
+**Com os emuladores do Firebase** (requer Java; não precisa de projeto real):
 
 ```bash
-npm run emulators        # Auth + Firestore locais, projeto demo-gastos
+npm run emulators        # Auth + Firestore locais
 npm run dev:emulators    # em outro terminal
 ```
 
-Crie o documento `allowed/<UID>` pela interface dos emuladores em http://127.0.0.1:4000.
+Faça login pela tela do emulador e crie o documento `allowed/<UID>` na interface em http://127.0.0.1:4000.
+
+<details>
+<summary><strong>Configurando um projeto Firebase próprio</strong></summary>
+
+1. No [console do Firebase](https://console.firebase.google.com/), crie um projeto, ative **Authentication → Google** e **Firestore** (modo produção), e registre um app **Web**.
+2. Copie `.env.example` para `.env.local` e preencha com a config do app Web.
+3. Rode `npx firebase login`, `npx firebase use --add` e `npx firebase deploy --only firestore:rules`.
+4. Rode `npm run dev` e entre com Google. A tela "Conta não autorizada" mostra seu UID: crie o documento `allowed/<UID>` no Firestore e recarregue a página.
+5. Para publicar, rode `npm run deploy` (build + Firebase Hosting).
+
+</details>
 
 ## Estrutura
 
 ```
 src/
-  lib/firebase.ts          # inicialização do Firebase (lê .env.local)
-  lib/selectors.ts         # cálculos: itens do mês, totais, categorias, recorrentes
-  store/FinanceStore.tsx   # sincroniza o Firestore e traduz ações em gravações
-  components/              # telas e componentes
-firestore.rules            # regras de acesso
+  App.tsx                  # layout, abas e visão geral
+  components/              # telas (Lançamentos, Recorrentes, Configurações), formulário, gráficos
+  lib/selectors.ts         # regras de negócio: itens do mês, totais, categorias, recorrências
+  lib/firebase.ts          # inicialização do Firebase sob demanda
+  store/FinanceStore.tsx   # store: provider Firestore + provider de demonstração
+  store/reducer.ts         # reducer em memória (demonstração)
+  store/demoData.ts        # gerador de dados fictícios
+firestore.rules            # regras de acesso e validação
 ```

@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react'
-import { signOut, type User } from 'firebase/auth'
-import { auth } from './lib/firebase'
-import { useFinance } from './store/FinanceStore'
+import { useFinance, useIsDemo } from './store/FinanceStore'
 import { currentMonth, formatMonthLabel, shiftMonth } from './lib/format'
 import { getDailyExpenses, getExpensesByCategory, getMonthItems, getTotals, getUpcomingBills } from './lib/selectors'
 import { SummaryCards } from './components/SummaryCards'
@@ -22,8 +20,19 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'settings', label: 'Configurações' },
 ]
 
-export default function App({ user }: { user: User }) {
+export interface Account {
+  name: string
+  photoURL?: string | null
+}
+
+interface Props {
+  account: Account
+  onSignOut: () => void
+}
+
+export default function App({ account, onSignOut }: Props) {
   const state = useFinance()
+  const isDemo = useIsDemo()
   const [month, setMonth] = useState(currentMonth)
   const [tab, setTab] = useState<Tab>('overview')
   const [adding, setAdding] = useState(false)
@@ -42,6 +51,16 @@ export default function App({ user }: { user: User }) {
 
   return (
     <div className="app">
+      {isDemo && (
+        <div className="demo-banner" role="status">
+          <span>
+            <strong>Modo demonstração</strong> — todos os valores são fictícios e nada é salvo.
+          </span>
+          <button className="link-btn" onClick={onSignOut}>
+            Sair da demonstração
+          </button>
+        </div>
+      )}
       <header className="topbar">
         <h1>💰 Meus Gastos</h1>
         <div className="month-picker">
@@ -58,21 +77,23 @@ export default function App({ user }: { user: User }) {
             </button>
           )}
         </div>
-        <button className="btn btn-primary" onClick={() => setAdding(true)}>
-          + Novo lançamento
+        <button className="btn btn-primary" onClick={() => setAdding(true)} aria-label="+ Novo lançamento">
+          + Novo<span className="hide-mobile"> lançamento</span>
         </button>
-        <div className="user-menu">
-          {user.photoURL ? (
-            <img src={user.photoURL} alt="" className="avatar" referrerPolicy="no-referrer" />
-          ) : (
-            <span className="avatar" aria-hidden>
-              {(user.displayName ?? user.email ?? '?').charAt(0).toUpperCase()}
-            </span>
-          )}
-          <button className="link-btn" onClick={() => signOut(auth)} title={user.email ?? undefined}>
-            Sair
-          </button>
-        </div>
+        {!isDemo && (
+          <div className="user-menu">
+            {account.photoURL ? (
+              <img src={account.photoURL} alt="" className="avatar" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="avatar" aria-hidden>
+                {account.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <button className="link-btn" onClick={onSignOut} title={account.name}>
+              Sair
+            </button>
+          </div>
+        )}
       </header>
 
       <nav className="tabs" role="tablist">
