@@ -25,13 +25,19 @@ Aplicação web para acompanhar as finanças do mês: saldo, gastos por categori
 - **Categorias personalizáveis** (nome, emoji, cor) e **backup/importação em JSON**.
 - **Tema claro/escuro** automático, **responsivo** e **funciona offline**.
 
-| Lançamentos | Recorrentes |
-|---|---|
-| ![Lançamentos](docs/screenshots/lancamentos.png) | ![Recorrentes](docs/screenshots/recorrentes.png) |
+### Compras parceladas
 
-| Novo lançamento | Tema escuro | Celular |
+| Lançar uma compra parcelada | Parcelas no mês (etiqueta "2/3") |
+|---|---|
+| ![Formulário com a opção Parcelado: 10x de R$ 289,90](docs/screenshots/novo-lancamento.png) | ![Lista de lançamentos com a parcela 2/3 do IPVA](docs/screenshots/lancamentos.png) |
+
+![Painel de parcelamentos em andamento, com parcelas pagas e valor restante](docs/screenshots/parcelamentos.png)
+
+### Outras telas
+
+| Recorrentes | Tema escuro | Celular |
 |---|---|---|
-| ![Novo lançamento](docs/screenshots/novo-lancamento.png) | ![Tema escuro](docs/screenshots/visao-geral-escuro.png) | ![Celular](docs/screenshots/celular.png) |
+| ![Recorrentes](docs/screenshots/recorrentes.png) | ![Tema escuro](docs/screenshots/visao-geral-escuro.png) | ![Celular](docs/screenshots/celular.png) |
 
 ## Stack
 

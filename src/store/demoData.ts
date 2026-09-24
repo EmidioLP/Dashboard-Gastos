@@ -81,12 +81,17 @@ export function createDemoState(): FinanceState {
     }
   }
 
-  // A tax installment still to pay at the end of the current month.
-  const lastDay = String(getDaysInMonth(parseMonth(now))).padStart(2, '0')
-  push('expense', 'IPVA — parcela', 'impostos', `${now}-${lastDay}`, 412.37, false)
 
-  // Installment purchases: one halfway through, one that started this month.
+  // Installments: a tax split in 3 (2nd one due this month), a purchase halfway through, one that just started.
   transactions.push(
+    ...buildInstallments({
+      base: { type: 'expense', description: 'IPVA', categoryId: 'impostos' },
+      valueMode: 'total',
+      value: 1237.11,
+      count: 3,
+      firstDate: `${months[1]}-28`,
+      markPastAsPaid: true,
+    }),
     ...buildInstallments({
       base: { type: 'expense', description: 'Notebook', categoryId: 'educacao' },
       valueMode: 'total',
