@@ -1,7 +1,7 @@
 import { getDaysInMonth } from 'date-fns'
 import type { FinanceState, Recurring, RecurringStatusMap, Transaction, TxType } from '../types'
 import { currentMonth, parseMonth, shiftMonth, today } from '../lib/format'
-import { buildInstallments } from '../lib/installments'
+import { buildInstallments, installmentDates } from '../lib/installments'
 import { DEFAULT_CATEGORIES } from './defaults'
 
 // Fictional numbers for the public demo. They are not related to anyone's real finances.
@@ -88,24 +88,21 @@ export function createDemoState(): FinanceState {
       base: { type: 'expense', description: 'IPVA', categoryId: 'impostos' },
       valueMode: 'total',
       value: 1237.11,
-      count: 3,
-      firstDate: `${months[1]}-28`,
+      dates: installmentDates(`${months[1]}-28`, 3),
       markPastAsPaid: true,
     }),
     ...buildInstallments({
       base: { type: 'expense', description: 'Notebook', categoryId: 'educacao' },
       valueMode: 'total',
       value: 4299,
-      count: 10,
-      firstDate: `${months[0]}-15`,
+      dates: installmentDates(`${months[0]}-15`, 10),
       markPastAsPaid: true,
     }),
     ...buildInstallments({
       base: { type: 'expense', description: 'Geladeira', categoryId: 'moradia' },
       valueMode: 'parcela',
       value: 289.9,
-      count: 12,
-      firstDate: `${now}-08`,
+      dates: installmentDates(`${now}-08`, 12),
       markPastAsPaid: true,
     }),
   )

@@ -46,12 +46,19 @@ export interface RecurringMonthStatus {
 // recurringId -> month (yyyy-MM) -> status
 export type RecurringStatusMap = Record<string, Record<string, RecurringMonthStatus>>
 
+/** Credit card billing cycle, used to date installment purchases by the bill they fall into. */
+export interface CardSettings {
+  closingDay: number // purchases on or after this day go to the next bill
+  dueDay: number
+}
+
 export interface FinanceState {
   version: 1
   categories: Category[]
   transactions: Transaction[]
   recurring: Recurring[]
   recurringStatus: RecurringStatusMap
+  card?: CardSettings
 }
 
 /** A row shown for a month: either a one-off transaction or a virtual recurring instance. */

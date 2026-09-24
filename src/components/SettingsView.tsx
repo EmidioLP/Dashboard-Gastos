@@ -9,6 +9,7 @@ export function SettingsView() {
   return (
     <>
       <CategoryManager />
+      <CardSection />
       <BackupSection />
     </>
   )
@@ -84,6 +85,68 @@ function CategoryManager() {
           </p>
         </Modal>
       )}
+    </section>
+  )
+}
+
+function CardSection() {
+  const { card } = useFinance()
+  const dispatch = useDispatch()
+  const [closingDay, setClosingDay] = useState(card ? String(card.closingDay) : '')
+  const [dueDay, setDueDay] = useState(card ? String(card.dueDay) : '')
+  const [message, setMessage] = useState('')
+
+  const validDay = (raw: string) => {
+    const n = Number(raw)
+    return Number.isInteger(n) && n >= 1 && n <= 31 ? n : null
+  }
+
+  const save = () => {
+    const closing = validDay(closingDay)
+    const due = validDay(dueDay)
+    if (closing === null || due === null) return setMessage('Os dias devem ser entre 1 e 31.')
+    dispatch({ type: 'settings/saveCard', card: { closingDay: closing, dueDay: due } })
+    setMessage('Cartão salvo.')
+  }
+
+  const remove = () => {
+    dispatch({ type: 'settings/saveCard', card: null })
+    setClosingDay('')
+    setDueDay('')
+    setMessage('Cartão removido.')
+  }
+
+  return (
+    <section className="card">
+      <header className="card-header">
+        <h2>Cartão de crédito</h2>
+      </header>
+      <p className="hint">
+        Com o ciclo da fatura configurado, nas compras parceladas no cartão você informa a data da compra e cada parcela
+        é lançada no vencimento da fatura em que cai. Compras a partir do dia do fechamento vão para a fatura seguinte.
+        Vencimento em fim de semana ou feriado nacional passa para o próximo dia útil.
+      </p>
+      <div className="field-row">
+        <label className="field">
+          <span>Dia do fechamento</span>
+          <input type="number" min={1} max={31} value={closingDay} onChange={(e) => setClosingDay(e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Dia do vencimento</span>
+          <input type="number" min={1} max={31} value={dueDay} onChange={(e) => setDueDay(e.target.value)} />
+        </label>
+      </div>
+      <div className="button-row">
+        <button className="btn btn-primary" onClick={save}>
+          Salvar
+        </button>
+        {card && (
+          <button className="btn" onClick={remove}>
+            Remover
+          </button>
+        )}
+      </div>
+      {message && <p className="hint">{message}</p>}
     </section>
   )
 }

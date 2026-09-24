@@ -22,7 +22,7 @@ Aplicação web para acompanhar as finanças do mês: saldo, gastos por categori
 - **Onde estou gastando**: ranking de categorias com valor e percentual. Clicar numa categoria abre os lançamentos filtrados.
 - **Contas a pagar**: pendências do mês, com as atrasadas destacadas.
 - **Lançamentos recorrentes**: salário, aluguel e assinaturas são cadastrados uma vez e aparecem todo mês, cada mês com seu próprio status de pago. Aceita valor diferente em um mês específico (ex.: conta de luz), pausa e data de término.
-- **Compras parceladas**: informe o valor total ou o da parcela, o número de parcelas e a data da 1ª. Cada parcela cai no mês certo (com etiqueta "3/10") e os centavos da divisão ficam na última. Um painel mostra os parcelamentos em andamento e quanto falta pagar.
+- **Compras parceladas**: informe o valor total ou o da parcela, o número de parcelas e a data da 1ª. Cada parcela cai no mês certo (com etiqueta "3/10") e os centavos da divisão ficam na última. Um painel mostra os parcelamentos em andamento e quanto falta pagar. Com o ciclo do cartão configurado (dia do fechamento e do vencimento), basta informar a data da compra: cada parcela vai para o vencimento da fatura em que cai, adiado para o próximo dia útil em fins de semana e feriados nacionais.
 - **Lançamentos**: busca e filtros por tipo, categoria e status; marcar como pago, editar e excluir.
 - **Categorias personalizáveis** (nome, emoji, cor) e **backup/importação em JSON**.
 - **Tema claro/escuro** automático, **responsivo** e **funciona offline**.

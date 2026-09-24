@@ -1,5 +1,6 @@
-import { addMonths, format, parse } from 'date-fns'
-import type { Transaction, TxType } from '../types'
+import { addMonths, format, getDaysInMonth, parse, setDate } from 'date-fns'
+import type { CardSettings, Transaction, TxType } from '../types'
+import { nextBusinessDay } from './businessDays'
 import { today, uid } from './format'
 
 export type InstallmentValueMode = 'total' | 'parcela'
@@ -10,8 +11,7 @@ interface BuildOptions {
   base: { type: TxType; description: string; categoryId: string }
   valueMode: InstallmentValueMode
   value: number
-  count: number
-  firstDate: string // yyyy-MM-dd
+  dates: string[] // yyyy-MM-dd, one per installment
   markPastAsPaid: boolean
 }
 
@@ -31,16 +31,30 @@ export function installmentDates(firstDate: string, count: number): string[] {
   return Array.from({ length: count }, (_, i) => format(addMonths(first, i), 'yyyy-MM-dd'))
 }
 
-export function buildInstallments({ base, valueMode, value, count, firstDate, markPastAsPaid }: BuildOptions): Transaction[] {
+const dayInMonth = (month: Date, day: number) => setDate(month, Math.min(day, getDaysInMonth(month)))
+
+/**
+ * Due dates of the card bills that each installment of a purchase made on `purchaseDate` falls into.
+ * A due date on a weekend or bank holiday moves to the next business day.
+ */
+export function cardInstallmentDates(purchaseDate: string, count: number, { closingDay, dueDay }: CardSettings): string[] {
+  const purchase = parse(purchaseDate, 'yyyy-MM-dd', new Date())
+  const afterClosing = purchase.getDate() >= Math.min(closingDay, getDaysInMonth(purchase))
+  const closingMonth = addMonths(setDate(purchase, 1), afterClosing ? 1 : 0)
+  const firstDueMonth = addMonths(closingMonth, dueDay > closingDay ? 0 : 1)
+  return Array.from({ length: count }, (_, i) => format(nextBusinessDay(dayInMonth(addMonths(firstDueMonth, i), dueDay)), 'yyyy-MM-dd'))
+}
+
+export function buildInstallments({ base, valueMode, value, dates, markPastAsPaid }: BuildOptions): Transaction[] {
   const groupId = uid()
-  const amounts = splitAmount(value, valueMode, count)
+  const amounts = splitAmount(value, valueMode, dates.length)
   const now = today()
-  return installmentDates(firstDate, count).map((date, i) => ({
+  return dates.map((date, i) => ({
     id: uid(),
     ...base,
     amount: amounts[i],
     date,
     paid: markPastAsPaid && date <= now,
-    installment: { groupId, index: i + 1, total: count },
+    installment: { groupId, index: i + 1, total: dates.length },
   }))
 }

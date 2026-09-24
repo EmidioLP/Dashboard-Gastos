@@ -23,6 +23,7 @@ import {
   type DocumentReference,
 } from 'firebase/firestore'
 import type {
+  CardSettings,
   Category,
   FinanceState,
   Recurring,
@@ -46,6 +47,7 @@ export type Action =
   | { type: 'recurring/setStatus'; id: string; month: string; patch: Partial<RecurringMonthStatus> }
   | { type: 'category/save'; category: Category }
   | { type: 'category/delete'; id: string }
+  | { type: 'settings/saveCard'; card: CardSettings | null }
   | { type: 'state/replace'; state: FinanceState }
   | { type: 'state/reset' }
 
@@ -87,13 +89,17 @@ async function applyAction(uid: string, state: FinanceState, action: Action) {
   const { db } = firebase()
   const col = (name: CollectionName) => collection(db, 'users', uid, name)
   const ref = (name: CollectionName, id: string) => doc(db, 'users', uid, name, id)
+  const cardRef = doc(db, 'users', uid, 'settings', 'card')
 
   const seedOps = (): Op[] =>
     DEFAULT_CATEGORIES.map((c) => ({ kind: 'set', ref: ref('categories', c.id), data: withoutId(c) }))
 
   const wipeOps = async (): Promise<Op[]> => {
     const snaps = await Promise.all(COLLECTIONS.map((name) => getDocs(col(name))))
-    return snaps.flatMap((s) => s.docs.map((d): Op => ({ kind: 'delete', ref: d.ref })))
+    return [
+      ...snaps.flatMap((s) => s.docs.map((d): Op => ({ kind: 'delete', ref: d.ref }))),
+      { kind: 'delete', ref: cardRef },
+    ]
   }
 
   switch (action.type) {
@@ -143,6 +149,8 @@ async function applyAction(uid: string, state: FinanceState, action: Action) {
           })
       return commitOps(ops)
     }
+    case 'settings/saveCard':
+      return action.card ? setDoc(cardRef, action.card) : deleteDoc(cardRef)
     case 'state/replace': {
       const s = action.state
       const categories = s.categories.some((c) => c.id === OTHER_CATEGORY_ID)
@@ -159,6 +167,7 @@ async function applyAction(uid: string, state: FinanceState, action: Action) {
             data: { ...withoutId(r), status: s.recurringStatus[r.id] ?? {} },
           }),
         ),
+        ...(s.card ? [{ kind: 'set', ref: cardRef, data: s.card } as Op] : []),
       ]
       return commitOps(ops)
     }
@@ -188,13 +197,14 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [recurringDocs, setRecurringDocs] = useState<(Recurring & { status?: RecurringStatusMap[string] })[]>([])
-  const [loaded, setLoaded] = useState<Set<CollectionName>>(new Set())
+  const [card, setCard] = useState<CardSettings | undefined>()
+  const [loaded, setLoaded] = useState<Set<CollectionName | 'card'>>(new Set())
   const [error, setError] = useState('')
   const seeded = useRef(false)
 
   useEffect(() => {
     const { db } = firebase()
-    const markLoaded = (name: CollectionName) => setLoaded((prev) => (prev.has(name) ? prev : new Set(prev).add(name)))
+    const markLoaded = (name: CollectionName | 'card') => setLoaded((prev) => (prev.has(name) ? prev : new Set(prev).add(name)))
     const onError = (e: Error) => setError(`Erro ao carregar dados: ${e.message}`)
     const col = (name: CollectionName) => collection(db, 'users', uid, name)
 
@@ -228,6 +238,14 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
         },
         onError,
       ),
+      onSnapshot(
+        doc(db, 'users', uid, 'settings', 'card'),
+        (snap) => {
+          setCard(snap.exists() ? (snap.data() as CardSettings) : undefined)
+          markLoaded('card')
+        },
+        onError,
+      ),
     ]
     return () => unsubs.forEach((u) => u())
   }, [uid])
@@ -242,8 +260,8 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
     const sortedCategories = [...categories].sort(
       (a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99) || a.name.localeCompare(b.name),
     )
-    return { version: 1, categories: sortedCategories, transactions, recurring, recurringStatus }
-  }, [categories, transactions, recurringDocs])
+    return { version: 1, categories: sortedCategories, transactions, recurring, recurringStatus, card }
+  }, [categories, transactions, recurringDocs, card])
 
   const stateRef = useRef(state)
   stateRef.current = state
@@ -257,7 +275,7 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
 
   const store = useMemo(() => ({ state, dispatch, isDemo: false }), [state, dispatch])
 
-  if (loaded.size < COLLECTIONS.length && !error) return <>{loading}</>
+  if (loaded.size < COLLECTIONS.length + 1 && !error) return <>{loading}</>
 
   return (
     <StoreContext.Provider value={store}>

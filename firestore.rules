@@ -36,6 +36,14 @@ service cloud.firestore {
           && request.resource.data.dayOfMonth is int
           && request.resource.data.dayOfMonth >= 1 && request.resource.data.dayOfMonth <= 31;
       }
+      match /settings/card {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.closingDay is int
+          && request.resource.data.closingDay >= 1 && request.resource.data.closingDay <= 31
+          && request.resource.data.dueDay is int
+          && request.resource.data.dueDay >= 1 && request.resource.data.dueDay <= 31;
+      }
       match /categories/{id} {
         allow read, delete: if isOwner(uid);
         allow create, update: if isOwner(uid)

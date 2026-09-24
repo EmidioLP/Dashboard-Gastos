@@ -53,6 +53,8 @@ export function reducer(state: FinanceState, action: Action): FinanceState {
         recurring: state.recurring.map(reassign),
       }
     }
+    case 'settings/saveCard':
+      return { ...state, card: action.card ?? undefined }
     case 'state/replace':
       return action.state
     case 'state/reset':

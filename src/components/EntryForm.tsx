@@ -8,6 +8,7 @@ import { formatMoney, parseAmount, today, uid } from '../lib/format'
 import {
   MAX_INSTALLMENTS,
   buildInstallments,
+  cardInstallmentDates,
   installmentDates,
   splitAmount,
   type InstallmentValueMode,
@@ -33,10 +34,12 @@ interface Props {
 
 const defaultDateFor = (month: string) => (today().startsWith(month) ? today() : `${month}-01`)
 
+const formatDate = (date: string) => format(parse(date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy')
+
 const shortMonth = (date: string) => format(parse(date, 'yyyy-MM-dd', new Date()), 'MMM/yyyy', { locale: ptBR })
 
 export function EntryForm({ mode, onClose }: Props) {
-  const { categories, recurringStatus, transactions } = useFinance()
+  const { categories, recurringStatus, transactions, card } = useFinance()
   const dispatch = useDispatch()
 
   const tx = mode.kind === 'transaction' ? mode.transaction : undefined
@@ -62,6 +65,7 @@ export function EntryForm({ mode, onClose }: Props) {
   const [valueMode, setValueMode] = useState<InstallmentValueMode>('total')
   const [markPastAsPaid, setMarkPastAsPaid] = useState(true)
   const [applyToAllInstallments, setApplyToAllInstallments] = useState(true)
+  const [onCard, setOnCard] = useState(true)
   const [dayOfMonth, setDayOfMonth] = useState(String(rec?.dayOfMonth ?? 1))
   const [startMonth, setStartMonth] = useState(rec?.startMonth ?? '')
   const [endMonth, setEndMonth] = useState(rec?.endMonth ?? '')
@@ -79,9 +83,11 @@ export function EntryForm({ mode, onClose }: Props) {
   const validCount = Number.isInteger(count) && count >= 2 && count <= MAX_INSTALLMENTS
   const parsedAmount = parseAmount(amount)
   const isInstallments = mode.kind === 'new' && frequency === 'installments'
+  const cardBilling = isInstallments && onCard ? card : undefined
+  const datesFor = (n: number) => (cardBilling ? cardInstallmentDates(date, n, cardBilling) : installmentDates(date, n))
   const preview =
     isInstallments && validCount && Number.isFinite(parsedAmount) && parsedAmount > 0 && date
-      ? { amounts: splitAmount(parsedAmount, valueMode, count), dates: installmentDates(date, count) }
+      ? { amounts: splitAmount(parsedAmount, valueMode, count), dates: datesFor(count) }
       : null
 
   const submit = (e: FormEvent) => {
@@ -137,7 +143,7 @@ export function EntryForm({ mode, onClose }: Props) {
       if (valueMode === 'total' && value < count * 0.01) return setError('Valor total pequeno demais para dividir.')
       dispatch({
         type: 'transaction/saveMany',
-        transactions: buildInstallments({ base, valueMode, value, count, firstDate: date, markPastAsPaid }),
+        transactions: buildInstallments({ base, valueMode, value, dates: datesFor(count), markPastAsPaid }),
       })
       return onClose()
     }
@@ -170,7 +176,7 @@ export function EntryForm({ mode, onClose }: Props) {
     { id: 'monthly', label: 'Todo mês' },
   ]
   const amountLabel = isInstallments ? (valueMode === 'total' ? 'Valor total (R$)' : 'Valor da parcela (R$)') : 'Valor (R$)'
-  const dateLabel = isInstallments ? 'Data da 1ª parcela' : frequency === 'monthly' ? 'Primeiro vencimento' : 'Data'
+  const dateLabel = cardBilling ? 'Data da compra' : isInstallments ? 'Data da 1ª parcela' : frequency === 'monthly' ? 'Primeiro vencimento' : 'Data'
   const hasPastInstallments = !!preview && preview.dates[0] <= today()
 
   return (
@@ -312,11 +318,20 @@ export function EntryForm({ mode, onClose }: Props) {
           </label>
         )}
 
+        {isInstallments && card && (
+          <label className="check">
+            <input type="checkbox" checked={onCard} onChange={(e) => setOnCard(e.target.checked)} />
+            No cartão de crédito
+          </label>
+        )}
+
         {preview && (
           <p className="installment-preview" aria-live="polite">
             <InstallmentSummary amounts={preview.amounts} />
             <span>
-              {shortMonth(preview.dates[0])} a {shortMonth(preview.dates[preview.dates.length - 1])}
+              {cardBilling
+                ? `1ª parcela vence em ${formatDate(preview.dates[0])}`
+                : `${shortMonth(preview.dates[0])} a ${shortMonth(preview.dates[preview.dates.length - 1])}`}
             </span>
           </p>
         )}
