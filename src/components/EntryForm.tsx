@@ -132,7 +132,15 @@ export function EntryForm({ mode, onClose }: Props) {
       const month = date.slice(0, 7)
       dispatch({
         type: 'recurring/save',
-        recurring: { id, ...base, amount: value, dayOfMonth: Number(date.slice(8, 10)), startMonth: month, active: true },
+        recurring: {
+          id,
+          ...base,
+          amount: value,
+          dayOfMonth: Number(date.slice(8, 10)),
+          startMonth: month,
+          active: true,
+          createdAt: Date.now(),
+        },
       })
       if (paid) dispatch({ type: 'recurring/setStatus', id, month, patch: { paid: true } })
       return onClose()
@@ -148,7 +156,15 @@ export function EntryForm({ mode, onClose }: Props) {
       return onClose()
     }
 
-    const saved: Transaction = { id: tx?.id ?? uid(), ...base, amount: value, date, paid, installment: tx?.installment }
+    const saved: Transaction = {
+      id: tx?.id ?? uid(),
+      ...base,
+      amount: value,
+      date,
+      paid,
+      installment: tx?.installment,
+      createdAt: tx ? tx.createdAt : Date.now(),
+    }
     if (tx?.installment && applyToAllInstallments) {
       const siblings = transactions
         .filter((t) => t.installment?.groupId === tx.installment!.groupId && t.id !== tx.id)

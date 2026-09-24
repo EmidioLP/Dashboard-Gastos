@@ -6,14 +6,16 @@ import { formatDay, formatMoney, shiftMonth, today } from '../lib/format'
 import { EntryForm, type EntryFormMode } from './EntryForm'
 import { Modal } from './Modal'
 
+// Lists can mix months (e.g. recent entries), so recurring actions use each item's own month.
+const monthOf = (item: MonthItem) => item.date.slice(0, 7)
+
 interface Props {
   items: MonthItem[]
-  month: string
   emptyText?: string
   compact?: boolean
 }
 
-export function ItemList({ items, month, emptyText = 'Nenhum lançamento.', compact }: Props) {
+export function ItemList({ items, emptyText = 'Nenhum lançamento.', compact }: Props) {
   const state = useFinance()
   const dispatch = useDispatch()
   const [editing, setEditing] = useState<EntryFormMode | null>(null)
@@ -21,7 +23,7 @@ export function ItemList({ items, month, emptyText = 'Nenhum lançamento.', comp
 
   const togglePaid = (item: MonthItem) => {
     if (item.source === 'transaction') dispatch({ type: 'transaction/togglePaid', id: item.sourceId })
-    else dispatch({ type: 'recurring/setStatus', id: item.sourceId, month, patch: { paid: !item.paid } })
+    else dispatch({ type: 'recurring/setStatus', id: item.sourceId, month: monthOf(item), patch: { paid: !item.paid } })
   }
 
   const edit = (item: MonthItem) => {
@@ -30,7 +32,7 @@ export function ItemList({ items, month, emptyText = 'Nenhum lançamento.', comp
       if (transaction) setEditing({ kind: 'transaction', transaction })
     } else {
       const recurring = state.recurring.find((r) => r.id === item.sourceId)
-      if (recurring) setEditing({ kind: 'recurring', recurring, month })
+      if (recurring) setEditing({ kind: 'recurring', recurring, month: monthOf(item) })
     }
   }
 
@@ -93,12 +95,13 @@ export function ItemList({ items, month, emptyText = 'Nenhum lançamento.', comp
       </ul>
 
       {editing && <EntryForm mode={editing} onClose={() => setEditing(null)} />}
-      {deleting && <DeleteDialog item={deleting} month={month} onClose={() => setDeleting(null)} />}
+      {deleting && <DeleteDialog item={deleting} onClose={() => setDeleting(null)} />}
     </>
   )
 }
 
-function DeleteDialog({ item, month, onClose }: { item: MonthItem; month: string; onClose: () => void }) {
+function DeleteDialog({ item, onClose }: { item: MonthItem; onClose: () => void }) {
+  const month = monthOf(item)
   const { recurring, transactions } = useFinance()
   const dispatch = useDispatch()
 

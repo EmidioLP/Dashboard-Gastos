@@ -23,6 +23,7 @@ export interface Transaction {
   date: string // yyyy-MM-dd
   paid: boolean
   installment?: Installment
+  createdAt?: number // ms; missing on entries saved before it existed
 }
 
 export interface Recurring {
@@ -35,6 +36,7 @@ export interface Recurring {
   startMonth: string // yyyy-MM
   endMonth?: string // yyyy-MM (inclusive)
   active: boolean
+  createdAt?: number // ms; missing on entries saved before it existed
 }
 
 export interface RecurringMonthStatus {

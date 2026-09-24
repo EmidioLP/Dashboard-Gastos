@@ -1,25 +1,25 @@
-import { getDaysInMonth } from 'date-fns'
+import { getDaysInMonth, parse } from 'date-fns'
 import type { Category, FinanceState, MonthItem, Recurring, Transaction } from '../types'
 import { parseMonth, today } from './format'
 
 export const isRecurringInMonth = (r: Recurring, month: string) =>
   r.active && r.startMonth <= month && (!r.endMonth || month <= r.endMonth)
 
+const transactionItem = (t: Transaction): MonthItem => ({
+  key: `t-${t.id}`,
+  source: 'transaction',
+  sourceId: t.id,
+  type: t.type,
+  description: t.description,
+  amount: t.amount,
+  categoryId: t.categoryId,
+  date: t.date,
+  paid: t.paid,
+  installment: t.installment,
+})
+
 export function getMonthItems(state: FinanceState, month: string): MonthItem[] {
-  const items: MonthItem[] = state.transactions
-    .filter((t) => t.date.startsWith(month))
-    .map((t) => ({
-      key: `t-${t.id}`,
-      source: 'transaction',
-      sourceId: t.id,
-      type: t.type,
-      description: t.description,
-      amount: t.amount,
-      categoryId: t.categoryId,
-      date: t.date,
-      paid: t.paid,
-      installment: t.installment,
-    }))
+  const items = state.transactions.filter((t) => t.date.startsWith(month)).map(transactionItem)
 
   const daysInMonth = getDaysInMonth(parseMonth(month))
   for (const r of state.recurring) {
@@ -41,6 +41,36 @@ export function getMonthItems(state: FinanceState, month: string): MonthItem[] {
   }
 
   return items.sort((a, b) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description))
+}
+
+/**
+ * Most recently added entries across all months, one row per installment purchase (its 1st installment).
+ * Entries saved before `createdAt` existed fall back to their date, and only once that date has passed.
+ */
+export function getRecentItems(state: FinanceState, limit: number): MonthItem[] {
+  const now = today()
+  const firstIndex = new Map<string, number>()
+  for (const { installment: inst } of state.transactions)
+    if (inst) firstIndex.set(inst.groupId, Math.min(inst.index, firstIndex.get(inst.groupId) ?? inst.index))
+
+  const rows: { item: MonthItem; sortKey: number }[] = []
+  for (const t of state.transactions) {
+    if (t.createdAt !== undefined) {
+      if (t.installment && t.installment.index !== firstIndex.get(t.installment.groupId)) continue
+      rows.push({ item: transactionItem(t), sortKey: t.createdAt })
+    } else if (t.date <= now) {
+      rows.push({ item: transactionItem(t), sortKey: parse(t.date, 'yyyy-MM-dd', new Date()).getTime() })
+    }
+  }
+  for (const r of state.recurring) {
+    if (r.createdAt === undefined) continue
+    const item = getMonthItems(state, r.startMonth).find((i) => i.key === `r-${r.id}-${r.startMonth}`)
+    if (item) rows.push({ item, sortKey: r.createdAt })
+  }
+  return rows
+    .sort((a, b) => b.sortKey - a.sortKey || b.item.date.localeCompare(a.item.date))
+    .slice(0, limit)
+    .map((r) => r.item)
 }
 
 export function getTotals(items: MonthItem[]) {

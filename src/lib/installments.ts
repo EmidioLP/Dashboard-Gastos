@@ -49,6 +49,7 @@ export function buildInstallments({ base, valueMode, value, dates, markPastAsPai
   const groupId = uid()
   const amounts = splitAmount(value, valueMode, dates.length)
   const now = today()
+  const createdAt = Date.now()
   return dates.map((date, i) => ({
     id: uid(),
     ...base,
@@ -56,5 +57,6 @@ export function buildInstallments({ base, valueMode, value, dates, markPastAsPai
     date,
     paid: markPastAsPaid && date <= now,
     installment: { groupId, index: i + 1, total: dates.length },
+    createdAt,
   }))
 }

@@ -16,12 +16,11 @@ export const EMPTY_FILTERS: Filters = { search: '', type: 'all', categoryId: '',
 
 interface Props {
   items: MonthItem[]
-  month: string
   filters: Filters
   onFiltersChange: (filters: Filters) => void
 }
 
-export function TransactionsView({ items, month, filters, onFiltersChange }: Props) {
+export function TransactionsView({ items, filters, onFiltersChange }: Props) {
   const { categories } = useFinance()
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) => onFiltersChange({ ...filters, [key]: value })
 
@@ -81,7 +80,6 @@ export function TransactionsView({ items, month, filters, onFiltersChange }: Pro
 
       <ItemList
         items={filtered}
-        month={month}
         emptyText={hasFilters ? 'Nenhum lançamento com esses filtros.' : 'Nenhum lançamento neste mês.'}
       />
     </section>

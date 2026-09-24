@@ -1,7 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useFinance, useIsDemo } from './store/FinanceStore'
 import { currentMonth, formatMonthLabel, shiftMonth } from './lib/format'
-import { getDailyExpenses, getExpensesByCategory, getMonthItems, getTotals, getUpcomingBills } from './lib/selectors'
+import {
+  getDailyExpenses,
+  getExpensesByCategory,
+  getMonthItems,
+  getRecentItems,
+  getTotals,
+  getUpcomingBills,
+} from './lib/selectors'
 import { SummaryCards } from './components/SummaryCards'
 import { CategoryBreakdown } from './components/CategoryBreakdown'
 import { DailyChart } from './components/DailyChart'
@@ -43,6 +50,7 @@ export default function App({ account, onSignOut }: Props) {
   const totals = getTotals(items)
   const byCategory = getExpensesByCategory(items, state.categories)
   const upcoming = getUpcomingBills(items)
+  const recent = useMemo(() => getRecentItems(state, 6), [state])
 
   const showCategory = (categoryId: string) => {
     setFilters({ ...EMPTY_FILTERS, categoryId, type: 'expense' })
@@ -127,7 +135,7 @@ export default function App({ account, onSignOut }: Props) {
                   <h2>Contas a pagar</h2>
                   {upcoming.some((u) => u.overdue) && <span className="badge-warn">⚠ Atrasadas</span>}
                 </header>
-                <ItemList items={upcoming} month={month} emptyText="Nenhuma conta pendente. 🎉" compact />
+                <ItemList items={upcoming} emptyText="Nenhuma conta pendente. 🎉" compact />
               </section>
             </div>
             <section className="card">
@@ -144,15 +152,14 @@ export default function App({ account, onSignOut }: Props) {
                 </button>
               </header>
               <ItemList
-                items={items.slice(0, 6)}
-                month={month}
-                emptyText="Nenhum lançamento neste mês. Clique em “+ Novo lançamento” para começar."
+                items={recent}
+                emptyText="Nenhum lançamento ainda. Clique em “+ Novo lançamento” para começar."
               />
             </section>
           </>
         )}
         {tab === 'transactions' && (
-          <TransactionsView items={items} month={month} filters={filters} onFiltersChange={setFilters} />
+          <TransactionsView items={items} filters={filters} onFiltersChange={setFilters} />
         )}
         {tab === 'recurring' && <RecurringView month={month} />}
         {tab === 'settings' && <SettingsView />}
