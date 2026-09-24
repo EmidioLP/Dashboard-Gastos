@@ -90,6 +90,9 @@ h1, h2 { margin: 0; }
 .meter { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin-top: 4px; }
 .meter span { display: block; height: 100%; background: var(--series-1); border-radius: 99px; }
 .meter span.warn { background: var(--warn); }
+.card-bill { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.card-bill .stat { flex: 1 1 240px; }
+.card-bill .button-row { align-items: center; }
 
 /* Buttons */
 .btn {

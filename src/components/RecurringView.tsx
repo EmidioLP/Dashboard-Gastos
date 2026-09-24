@@ -51,9 +51,16 @@ export function RecurringView({ month }: { month: string }) {
                       {cat.icon}
                     </span>
                     <div className="item-main">
-                      <span className="item-desc">{r.description}</span>
+                      <span className="item-desc">
+                        {r.description}
+                        {r.onCard && (
+                          <span className="tag" title="No cartão de crédito">
+                            💳
+                          </span>
+                        )}
+                      </span>
                       <span className="item-meta">
-                        {cat.name} · todo dia {r.dayOfMonth} · desde {formatMonthLabel(r.startMonth)}
+                        {cat.name} · {r.onCard ? 'cobrança todo dia' : 'todo dia'} {r.dayOfMonth} · desde {formatMonthLabel(r.startMonth)}
                         {r.endMonth && ` até ${formatMonthLabel(r.endMonth)}`}
                       </span>
                     </div>

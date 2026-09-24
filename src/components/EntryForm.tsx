@@ -8,6 +8,7 @@ import { formatMoney, parseAmount, today, uid } from '../lib/format'
 import {
   MAX_INSTALLMENTS,
   buildInstallments,
+  cardDueDate,
   cardInstallmentDates,
   installmentDates,
   splitAmount,
@@ -56,7 +57,9 @@ export function EntryForm({ mode, onClose }: Props) {
   const [categoryId, setCategoryId] = useState(
     tx?.categoryId ?? rec?.categoryId ?? (categories.find((c) => c.id !== INCOME_CATEGORY_ID)?.id ?? OTHER_CATEGORY_ID),
   )
-  const [date, setDate] = useState(tx?.date ?? (mode.kind === 'new' ? defaultDateFor(mode.month) : today()))
+  const [date, setDate] = useState(
+    tx?.purchaseDate ?? tx?.date ?? (mode.kind === 'new' ? defaultDateFor(mode.month) : today()),
+  )
   const [paid, setPaid] = useState(tx?.paid ?? monthStatus?.paid ?? false)
   const [frequency, setFrequency] = useState<Frequency>(
     mode.kind === 'recurring' || (mode.kind === 'new' && mode.recurring) ? 'monthly' : 'single',
@@ -65,7 +68,8 @@ export function EntryForm({ mode, onClose }: Props) {
   const [valueMode, setValueMode] = useState<InstallmentValueMode>('total')
   const [markPastAsPaid, setMarkPastAsPaid] = useState(true)
   const [applyToAllInstallments, setApplyToAllInstallments] = useState(true)
-  const [onCard, setOnCard] = useState(true)
+  // null = not chosen yet: installment purchases default to the card, other entries do not
+  const [onCardChoice, setOnCard] = useState<boolean | null>(tx?.onCard ?? rec?.onCard ?? null)
   const [dayOfMonth, setDayOfMonth] = useState(String(rec?.dayOfMonth ?? 1))
   const [startMonth, setStartMonth] = useState(rec?.startMonth ?? '')
   const [endMonth, setEndMonth] = useState(rec?.endMonth ?? '')
@@ -83,7 +87,10 @@ export function EntryForm({ mode, onClose }: Props) {
   const validCount = Number.isInteger(count) && count >= 2 && count <= MAX_INSTALLMENTS
   const parsedAmount = parseAmount(amount)
   const isInstallments = mode.kind === 'new' && frequency === 'installments'
-  const cardBilling = isInstallments && onCard ? card : undefined
+  const onCard = onCardChoice ?? frequency === 'installments'
+  // the card option is not offered when editing a single installment: its date is already a bill due date
+  const showCardOption = !!card && type === 'expense' && !tx?.installment
+  const cardBilling = showCardOption && onCard ? card : undefined
   const datesFor = (n: number) => (cardBilling ? cardInstallmentDates(date, n, cardBilling) : installmentDates(date, n))
   const preview =
     isInstallments && validCount && Number.isFinite(parsedAmount) && parsedAmount > 0 && date
@@ -112,6 +119,7 @@ export function EntryForm({ mode, onClose }: Props) {
           dayOfMonth: day,
           startMonth,
           endMonth: endMonth || undefined,
+          onCard: type === 'expense' && (card ? onCard : !!rec.onCard),
         },
       })
       if (recMonth) {
@@ -130,6 +138,7 @@ export function EntryForm({ mode, onClose }: Props) {
     if (mode.kind === 'new' && frequency === 'monthly') {
       const id = uid()
       const month = date.slice(0, 7)
+      const firstMonth = cardBilling ? cardDueDate(date, cardBilling).slice(0, 7) : month
       dispatch({
         type: 'recurring/save',
         recurring: {
@@ -140,9 +149,10 @@ export function EntryForm({ mode, onClose }: Props) {
           startMonth: month,
           active: true,
           createdAt: Date.now(),
+          onCard: !!cardBilling,
         },
       })
-      if (paid) dispatch({ type: 'recurring/setStatus', id, month, patch: { paid: true } })
+      if (paid) dispatch({ type: 'recurring/setStatus', id, month: firstMonth, patch: { paid: true } })
       return onClose()
     }
 
@@ -151,7 +161,13 @@ export function EntryForm({ mode, onClose }: Props) {
       if (valueMode === 'total' && value < count * 0.01) return setError('Valor total pequeno demais para dividir.')
       dispatch({
         type: 'transaction/saveMany',
-        transactions: buildInstallments({ base, valueMode, value, dates: datesFor(count), markPastAsPaid }),
+        transactions: buildInstallments({
+          base: cardBilling ? { ...base, onCard: true, purchaseDate: date } : base,
+          valueMode,
+          value,
+          dates: datesFor(count),
+          markPastAsPaid,
+        }),
       })
       return onClose()
     }
@@ -160,10 +176,14 @@ export function EntryForm({ mode, onClose }: Props) {
       id: tx?.id ?? uid(),
       ...base,
       amount: value,
-      date,
+      date: cardBilling ? cardDueDate(date, cardBilling) : date,
       paid,
       installment: tx?.installment,
       createdAt: tx ? tx.createdAt : Date.now(),
+      // an installment keeps its card data; a one-off entry follows the checkbox
+      ...(tx?.installment
+        ? { onCard: tx.onCard, purchaseDate: tx.purchaseDate }
+        : cardBilling && { onCard: true, purchaseDate: date }),
     }
     if (tx?.installment && applyToAllInstallments) {
       const siblings = transactions
@@ -192,7 +212,17 @@ export function EntryForm({ mode, onClose }: Props) {
     { id: 'monthly', label: 'Todo mês' },
   ]
   const amountLabel = isInstallments ? (valueMode === 'total' ? 'Valor total (R$)' : 'Valor da parcela (R$)') : 'Valor (R$)'
-  const dateLabel = cardBilling ? 'Data da compra' : isInstallments ? 'Data da 1ª parcela' : frequency === 'monthly' ? 'Primeiro vencimento' : 'Data'
+  const dateLabel =
+    cardBilling && frequency !== 'monthly'
+      ? 'Data da compra'
+      : isInstallments
+        ? 'Data da 1ª parcela'
+        : frequency === 'monthly'
+          ? cardBilling
+            ? 'Primeira cobrança'
+            : 'Primeiro vencimento'
+          : 'Data'
+  const singleCardDue = cardBilling && frequency === 'single' && date ? cardDueDate(date, cardBilling) : null
   const hasPastInstallments = !!preview && preview.dates[0] <= today()
 
   return (
@@ -302,7 +332,7 @@ export function EntryForm({ mode, onClose }: Props) {
           <>
             <div className="field-row">
               <label className="field">
-                <span>Dia do vencimento</span>
+                <span>{cardBilling ? 'Dia da cobrança' : 'Dia do vencimento'}</span>
                 <input
                   type="number"
                   min={1}
@@ -334,11 +364,20 @@ export function EntryForm({ mode, onClose }: Props) {
           </label>
         )}
 
-        {isInstallments && card && (
+        {showCardOption && (
           <label className="check">
             <input type="checkbox" checked={onCard} onChange={(e) => setOnCard(e.target.checked)} />
             No cartão de crédito
           </label>
+        )}
+
+        {singleCardDue && (
+          <p className="installment-preview" aria-live="polite">
+            <span>Entra na fatura que vence em {formatDate(singleCardDue)}</span>
+          </p>
+        )}
+        {cardBilling && frequency === 'monthly' && (
+          <p className="hint">Cada cobrança entra na fatura do cartão em que cai e conta no mês do vencimento.</p>
         )}
 
         {preview && (

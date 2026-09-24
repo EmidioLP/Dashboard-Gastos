@@ -17,6 +17,7 @@ import { EntryForm } from './components/EntryForm'
 import { EMPTY_FILTERS, TransactionsView, type Filters } from './components/TransactionsView'
 import { RecurringView } from './components/RecurringView'
 import { SettingsView } from './components/SettingsView'
+import { CardBill } from './components/CardBill'
 
 type Tab = 'overview' | 'transactions' | 'recurring' | 'settings'
 
@@ -54,6 +55,11 @@ export default function App({ account, onSignOut }: Props) {
 
   const showCategory = (categoryId: string) => {
     setFilters({ ...EMPTY_FILTERS, categoryId, type: 'expense' })
+    setTab('transactions')
+  }
+
+  const showCardItems = () => {
+    setFilters({ ...EMPTY_FILTERS, payment: 'card', type: 'expense' })
     setTab('transactions')
   }
 
@@ -138,6 +144,7 @@ export default function App({ account, onSignOut }: Props) {
                 <ItemList items={upcoming} emptyText="Nenhuma conta pendente. 🎉" compact />
               </section>
             </div>
+            <CardBill items={items} month={month} monthExpense={totals.expense} onShowItems={showCardItems} />
             <section className="card">
               <header className="card-header">
                 <h2>Gastos por dia</h2>

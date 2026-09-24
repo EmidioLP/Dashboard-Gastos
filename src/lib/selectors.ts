@@ -1,6 +1,7 @@
 import { getDaysInMonth, parse } from 'date-fns'
 import type { Category, FinanceState, MonthItem, Recurring, Transaction } from '../types'
-import { parseMonth, today } from './format'
+import { parseMonth, shiftMonth, today } from './format'
+import { cardDueDate } from './installments'
 
 export const isRecurringInMonth = (r: Recurring, month: string) =>
   r.active && r.startMonth <= month && (!r.endMonth || month <= r.endMonth)
@@ -16,17 +17,37 @@ const transactionItem = (t: Transaction): MonthItem => ({
   date: t.date,
   paid: t.paid,
   installment: t.installment,
+  onCard: t.onCard,
+  purchaseDate: t.purchaseDate,
 })
+
+const chargeDate = (r: Recurring, month: string) =>
+  `${month}-${String(Math.min(r.dayOfMonth, getDaysInMonth(parseMonth(month)))).padStart(2, '0')}`
 
 export function getMonthItems(state: FinanceState, month: string): MonthItem[] {
   const items = state.transactions.filter((t) => t.date.startsWith(month)).map(transactionItem)
 
-  const daysInMonth = getDaysInMonth(parseMonth(month))
   for (const r of state.recurring) {
-    if (!isRecurringInMonth(r, month)) continue
+    const onCard = !!(r.onCard && state.card)
+    let date: string | undefined
+    let purchaseDate: string | undefined
+    if (onCard) {
+      // a charge lands in the bill due up to two months later, depending on the card's closing and due days
+      for (const chargeMonth of [shiftMonth(month, -2), shiftMonth(month, -1), month]) {
+        if (!isRecurringInMonth(r, chargeMonth)) continue
+        const charged = chargeDate(r, chargeMonth)
+        const due = cardDueDate(charged, state.card!)
+        if (due.startsWith(month)) {
+          date = due
+          purchaseDate = charged
+        }
+      }
+    } else if (isRecurringInMonth(r, month)) {
+      date = chargeDate(r, month)
+    }
+    if (!date) continue
     const status = state.recurringStatus[r.id]?.[month]
     if (status?.skipped) continue
-    const day = String(Math.min(r.dayOfMonth, daysInMonth)).padStart(2, '0')
     items.push({
       key: `r-${r.id}-${month}`,
       source: 'recurring',
@@ -35,8 +56,9 @@ export function getMonthItems(state: FinanceState, month: string): MonthItem[] {
       description: r.description,
       amount: status?.amountOverride ?? r.amount,
       categoryId: r.categoryId,
-      date: `${month}-${day}`,
+      date,
       paid: status?.paid ?? false,
+      ...(onCard && { onCard, purchaseDate }),
     })
   }
 
@@ -64,13 +86,29 @@ export function getRecentItems(state: FinanceState, limit: number): MonthItem[] 
   }
   for (const r of state.recurring) {
     if (r.createdAt === undefined) continue
-    const item = getMonthItems(state, r.startMonth).find((i) => i.key === `r-${r.id}-${r.startMonth}`)
+    // first occurrence: the start month, or up to two months later when the charge goes to a later card bill
+    const item = [0, 1, 2]
+      .map((delta) => shiftMonth(r.startMonth, delta))
+      .map((m) => getMonthItems(state, m).find((i) => i.key === `r-${r.id}-${m}`))
+      .find(Boolean)
     if (item) rows.push({ item, sortKey: r.createdAt })
   }
   return rows
     .sort((a, b) => b.sortKey - a.sortKey || b.item.date.localeCompare(a.item.date))
     .slice(0, limit)
     .map((r) => r.item)
+}
+
+/** Expenses of the month that are on the credit card bill. */
+export function getCardBill(items: MonthItem[]) {
+  const billItems = items.filter((i) => i.onCard && i.type === 'expense')
+  const pendingItems = billItems.filter((i) => !i.paid)
+  return {
+    items: billItems,
+    pendingItems,
+    total: billItems.reduce((sum, i) => sum + i.amount, 0),
+    pending: pendingItems.reduce((sum, i) => sum + i.amount, 0),
+  }
 }
 
 export function getTotals(items: MonthItem[]) {

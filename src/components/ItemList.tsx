@@ -64,9 +64,15 @@ export function ItemList({ items, emptyText = 'Nenhum lançamento.', compact }: 
                       {item.installment.index}/{item.installment.total}
                     </span>
                   )}
+                  {item.onCard && (
+                    <span className="tag" title="No cartão de crédito">
+                      💳
+                    </span>
+                  )}
                 </span>
                 <span className="item-meta">
                   {cat.name} · {formatDay(item.date)}
+                  {item.purchaseDate && ` · compra em ${formatDay(item.purchaseDate)}`}
                 </span>
               </div>
               <span className={`item-amount ${isIncome ? 'income' : 'expense'}`}>
@@ -176,7 +182,8 @@ function DeleteDialog({ item, onClose }: { item: MonthItem; onClose: () => void 
   }
   const endFromThisMonth = () => {
     if (rec) {
-      const endMonth = shiftMonth(month, -1)
+      // recurring months are charge months; on the card the charge can be in an earlier month than the bill
+      const endMonth = shiftMonth((item.purchaseDate ?? item.date).slice(0, 7), -1)
       if (endMonth < rec.startMonth) dispatch({ type: 'recurring/delete', id: rec.id })
       else dispatch({ type: 'recurring/save', recurring: { ...rec, endMonth } })
     }

@@ -1,5 +1,5 @@
 import { getDaysInMonth } from 'date-fns'
-import type { FinanceState, Recurring, RecurringStatusMap, Transaction, TxType } from '../types'
+import type { CardSettings, FinanceState, Recurring, RecurringStatusMap, Transaction, TxType } from '../types'
 import { currentMonth, parseMonth, shiftMonth, today } from '../lib/format'
 import { buildInstallments, installmentDates } from '../lib/installments'
 import { DEFAULT_CATEGORIES } from './defaults'
@@ -12,14 +12,16 @@ const RECURRING: Omit<Recurring, 'id' | 'startMonth' | 'active'>[] = [
   { type: 'expense', description: 'Aluguel', amount: 1900, categoryId: 'moradia', dayOfMonth: 10 },
   { type: 'expense', description: 'Condomínio', amount: 420, categoryId: 'moradia', dayOfMonth: 10 },
   { type: 'expense', description: 'Internet fibra', amount: 99.9, categoryId: 'moradia', dayOfMonth: 15 },
-  { type: 'expense', description: 'Streaming de vídeo', amount: 44.9, categoryId: 'assinaturas', dayOfMonth: 8 },
-  { type: 'expense', description: 'Streaming de música', amount: 21.9, categoryId: 'assinaturas', dayOfMonth: 12 },
-  { type: 'expense', description: 'Armazenamento na nuvem', amount: 9.9, categoryId: 'assinaturas', dayOfMonth: 18 },
+  { type: 'expense', description: 'Streaming de vídeo', amount: 44.9, categoryId: 'assinaturas', dayOfMonth: 8, onCard: true },
+  { type: 'expense', description: 'Streaming de música', amount: 21.9, categoryId: 'assinaturas', dayOfMonth: 12, onCard: true },
+  { type: 'expense', description: 'Armazenamento na nuvem', amount: 9.9, categoryId: 'assinaturas', dayOfMonth: 18, onCard: true },
   { type: 'expense', description: 'Academia', amount: 119.9, categoryId: 'saude', dayOfMonth: 3 },
   { type: 'expense', description: 'Plano de saúde', amount: 380, categoryId: 'saude', dayOfMonth: 20 },
   { type: 'expense', description: 'Curso online', amount: 79.9, categoryId: 'educacao', dayOfMonth: 25 },
   { type: 'expense', description: 'DAS MEI', amount: 75.9, categoryId: 'impostos', dayOfMonth: 20 },
 ]
+
+const DEMO_CARD: CardSettings = { closingDay: 28, dueDay: 8 }
 
 // [description, category, typical amount]
 const DAILY: [string, string, number][] = [
@@ -92,14 +94,14 @@ export function createDemoState(): FinanceState {
       markPastAsPaid: true,
     }),
     ...buildInstallments({
-      base: { type: 'expense', description: 'Notebook', categoryId: 'educacao' },
+      base: { type: 'expense', description: 'Notebook', categoryId: 'educacao', onCard: true },
       valueMode: 'total',
       value: 4299,
-      dates: installmentDates(`${months[0]}-15`, 10),
+      dates: installmentDates(`${months[0]}-08`, 10),
       markPastAsPaid: true,
     }),
     ...buildInstallments({
-      base: { type: 'expense', description: 'Geladeira', categoryId: 'moradia' },
+      base: { type: 'expense', description: 'Geladeira', categoryId: 'moradia', onCard: true },
       valueMode: 'parcela',
       value: 289.9,
       dates: installmentDates(`${now}-08`, 12),
@@ -107,5 +109,5 @@ export function createDemoState(): FinanceState {
     }),
   )
 
-  return { version: 1, categories: DEFAULT_CATEGORIES, transactions, recurring, recurringStatus }
+  return { version: 1, categories: DEFAULT_CATEGORIES, transactions, recurring, recurringStatus, card: DEMO_CARD }
 }

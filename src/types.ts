@@ -20,10 +20,12 @@ export interface Transaction {
   description: string
   amount: number
   categoryId: string
-  date: string // yyyy-MM-dd
+  date: string // yyyy-MM-dd; for card purchases, the due date of the bill they fall into
   paid: boolean
   installment?: Installment
   createdAt?: number // ms; missing on entries saved before it existed
+  onCard?: boolean
+  purchaseDate?: string // yyyy-MM-dd, set on card purchases
 }
 
 export interface Recurring {
@@ -32,11 +34,12 @@ export interface Recurring {
   description: string
   amount: number
   categoryId: string
-  dayOfMonth: number
+  dayOfMonth: number // on the card: the day it is charged
   startMonth: string // yyyy-MM
   endMonth?: string // yyyy-MM (inclusive)
   active: boolean
   createdAt?: number // ms; missing on entries saved before it existed
+  onCard?: boolean // each charge counts in the month its bill is due
 }
 
 export interface RecurringMonthStatus {
@@ -75,4 +78,6 @@ export interface MonthItem {
   date: string
   paid: boolean
   installment?: Installment
+  onCard?: boolean
+  purchaseDate?: string
 }

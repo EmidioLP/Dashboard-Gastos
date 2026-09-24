@@ -8,7 +8,7 @@ export type InstallmentValueMode = 'total' | 'parcela'
 export const MAX_INSTALLMENTS = 72
 
 interface BuildOptions {
-  base: { type: TxType; description: string; categoryId: string }
+  base: { type: TxType; description: string; categoryId: string; onCard?: boolean; purchaseDate?: string }
   valueMode: InstallmentValueMode
   value: number
   dates: string[] // yyyy-MM-dd, one per installment
@@ -44,6 +44,12 @@ export function cardInstallmentDates(purchaseDate: string, count: number, { clos
   const firstDueMonth = addMonths(closingMonth, dueDay > closingDay ? 0 : 1)
   return Array.from({ length: count }, (_, i) => format(nextBusinessDay(dayInMonth(addMonths(firstDueMonth, i), dueDay)), 'yyyy-MM-dd'))
 }
+
+export const cardDueDate = (purchaseDate: string, card: CardSettings) => cardInstallmentDates(purchaseDate, 1, card)[0]
+
+/** Due date of the card bill that is due in `month` (yyyy-MM). */
+export const billDueDate = (month: string, card: CardSettings) =>
+  format(nextBusinessDay(dayInMonth(parse(month, 'yyyy-MM', new Date()), card.dueDay)), 'yyyy-MM-dd')
 
 export function buildInstallments({ base, valueMode, value, dates, markPastAsPaid }: BuildOptions): Transaction[] {
   const groupId = uid()

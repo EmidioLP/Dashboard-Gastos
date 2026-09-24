@@ -10,9 +10,10 @@ export interface Filters {
   type: 'all' | 'income' | 'expense'
   categoryId: string
   status: 'all' | 'paid' | 'pending'
+  payment: 'all' | 'card' | 'other'
 }
 
-export const EMPTY_FILTERS: Filters = { search: '', type: 'all', categoryId: '', status: 'all' }
+export const EMPTY_FILTERS: Filters = { search: '', type: 'all', categoryId: '', status: 'all', payment: 'all' }
 
 interface Props {
   items: MonthItem[]
@@ -21,7 +22,8 @@ interface Props {
 }
 
 export function TransactionsView({ items, filters, onFiltersChange }: Props) {
-  const { categories } = useFinance()
+  const { categories, card } = useFinance()
+  const showPayment = !!card || items.some((i) => i.onCard) || filters.payment !== 'all'
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) => onFiltersChange({ ...filters, [key]: value })
 
   const filtered = useMemo(() => {
@@ -31,6 +33,7 @@ export function TransactionsView({ items, filters, onFiltersChange }: Props) {
         (filters.type === 'all' || i.type === filters.type) &&
         (!filters.categoryId || i.categoryId === filters.categoryId) &&
         (filters.status === 'all' || (filters.status === 'paid') === i.paid) &&
+        (filters.payment === 'all' || (filters.payment === 'card') === !!i.onCard) &&
         (!q || i.description.toLowerCase().includes(q)),
     )
   }, [items, filters])
@@ -65,6 +68,13 @@ export function TransactionsView({ items, filters, onFiltersChange }: Props) {
           <option value="pending">Pendentes</option>
           <option value="paid">Pagos / recebidos</option>
         </select>
+        {showPayment && (
+          <select value={filters.payment} onChange={(e) => set('payment', e.target.value as Filters['payment'])}>
+            <option value="all">Qualquer forma de pagamento</option>
+            <option value="card">Só cartão de crédito</option>
+            <option value="other">Fora do cartão</option>
+          </select>
+        )}
         {hasFilters && (
           <button className="link-btn" onClick={() => onFiltersChange(EMPTY_FILTERS)}>
             Limpar filtros
