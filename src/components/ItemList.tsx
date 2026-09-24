@@ -48,10 +48,27 @@ export function ItemList({ items, emptyText = 'Nenhum lançamento.', compact }: 
           const overdue = !item.paid && !isIncome && item.date < now
           return (
             <li key={item.key} className={item.paid ? 'is-paid' : ''}>
-              <span className="item-icon" style={{ background: `${cat.color}22`, color: cat.color }} aria-hidden>
+              <span
+                className="item-icon"
+                style={{ background: `${cat.color}22`, color: cat.color }}
+                onClick={() => edit(item)}
+                aria-hidden
+              >
                 {cat.icon}
               </span>
-              <div className="item-main">
+              <div
+                className="item-main"
+                role="button"
+                tabIndex={0}
+                title="Editar"
+                onClick={() => edit(item)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    edit(item)
+                  }
+                }}
+              >
                 <span className="item-desc">
                   {item.description}
                   {item.source === 'recurring' && (
@@ -85,16 +102,16 @@ export function ItemList({ items, emptyText = 'Nenhum lançamento.', compact }: 
               >
                 {item.paid ? (isIncome ? '✓ Recebido' : '✓ Pago') : overdue ? '⚠ Atrasada' : 'Pendente'}
               </button>
-              {!compact && (
-                <div className="item-actions">
-                  <button className="icon-btn" onClick={() => edit(item)} aria-label="Editar" title="Editar">
-                    ✎
-                  </button>
+              <div className="item-actions">
+                <button className="icon-btn" onClick={() => edit(item)} aria-label="Editar" title="Editar">
+                  ✎
+                </button>
+                {!compact && (
                   <button className="icon-btn danger" onClick={() => setDeleting(item)} aria-label="Excluir" title="Excluir">
                     🗑
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </li>
           )
         })}

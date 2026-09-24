@@ -12,9 +12,14 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'saude', name: 'Saúde', color: '#10b981', icon: '💊' },
   { id: 'lazer', name: 'Lazer', color: '#ec4899', icon: '🎉' },
   { id: 'educacao', name: 'Educação', color: '#14b8a6', icon: '📚' },
+  { id: 'vestuario', name: 'Vestuário', color: '#f97316', icon: '👕' },
+  { id: 'higiene', name: 'Higiene', color: '#06b6d4', icon: '🧴' },
   { id: INCOME_CATEGORY_ID, name: 'Renda', color: '#22c55e', icon: '💵' },
   { id: OTHER_CATEGORY_ID, name: 'Outros', color: '#64748b', icon: '📦' },
 ]
+
+/** Default categories added after accounts already existed; created on load when an account lacks them. */
+export const ADDED_DEFAULT_CATEGORY_IDS = ['vestuario', 'higiene']
 
 export const createInitialState = (): FinanceState => ({
   version: 1,

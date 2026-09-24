@@ -32,7 +32,7 @@ import type {
   Transaction,
 } from '../types'
 import { firebase } from '../lib/firebase'
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from './defaults'
+import { ADDED_DEFAULT_CATEGORY_IDS, DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from './defaults'
 import { createDemoState } from './demoData'
 import { reducer } from './reducer'
 
@@ -201,6 +201,7 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
   const [loaded, setLoaded] = useState<Set<CollectionName | 'card'>>(new Set())
   const [error, setError] = useState('')
   const seeded = useRef(false)
+  const backfilled = useRef(false)
 
   useEffect(() => {
     const { db } = firebase()
@@ -216,6 +217,16 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
           if (snap.empty && !snap.metadata.fromCache && !seeded.current) {
             seeded.current = true
             applyAction(uid, EMPTY_STATE, { type: 'state/reset' }).catch(onError)
+          }
+          // Existing accounts: create the default categories that were added later.
+          if (!snap.empty && !snap.metadata.fromCache && !backfilled.current) {
+            backfilled.current = true
+            const existing = new Set(snap.docs.map((d) => d.id))
+            const missing = DEFAULT_CATEGORIES.filter((c) => ADDED_DEFAULT_CATEGORY_IDS.includes(c.id) && !existing.has(c.id))
+            if (missing.length)
+              commitOps(
+                missing.map((c): Op => ({ kind: 'set', ref: doc(db, 'users', uid, 'categories', c.id), data: withoutId(c) })),
+              ).catch(onError)
           }
           setCategories(snap.docs.map((d) => ({ ...(d.data() as Omit<Category, 'id'>), id: d.id })))
           markLoaded('categories')

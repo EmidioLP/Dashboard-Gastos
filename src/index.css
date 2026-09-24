@@ -120,10 +120,12 @@ h1, h2 { margin: 0; }
   padding: 10px 4px; border-top: 1px solid var(--border);
 }
 .item-list li:first-child { border-top: 0; }
-.item-list.compact li { grid-template-columns: 36px 1fr auto auto; }
 .item-list li.is-inactive { opacity: 0.5; }
 .item-icon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 1.1rem; }
-.item-main { display: flex; flex-direction: column; min-width: 0; }
+.item-main { display: flex; flex-direction: column; min-width: 0; cursor: pointer; border-radius: 6px; }
+.item-main:hover .item-desc { text-decoration: underline; }
+.item-main:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.item-icon { cursor: pointer; }
 .item-desc { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-meta { color: var(--text-muted); font-size: 0.8rem; }
 .item-amount { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -234,7 +236,6 @@ input[type='color'] { width: 40px; height: 38px; padding: 3px; cursor: pointer; 
   .item-list li { grid-template-columns: 36px 1fr auto; gap: 4px 10px; }
   .item-list li .status-btn { grid-column: 2; justify-self: start; }
   .item-list li .item-actions { grid-column: 3; justify-self: end; }
-  .item-list.compact li { grid-template-columns: 36px 1fr auto; }
 }
 
 /* Auth / status */
