@@ -8,7 +8,9 @@ Aplicação web para acompanhar as finanças do mês: saldo, gastos por categori
 ![Firebase](https://img.shields.io/badge/Firebase-Auth%20%C2%B7%20Firestore-FFCA28?logo=firebase&logoColor=black)
 ![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white)
 
-**▶ [Ver demonstração](https://SEU-APP.vercel.app/?demo)**: abre o app completo com **dados fictícios**, sem login e sem salvar nada.
+**▶ [Ver demonstração](https://dashboard-gastos-ten.vercel.app/?demo)**: abre o app completo com **dados fictícios**, sem login e sem salvar nada.
+
+🌐 **App publicado:** [dashboard-gastos-ten.vercel.app](https://dashboard-gastos-ten.vercel.app). O acesso com login é restrito ao dono; para explorar, use a demonstração.
 
 ![Visão geral](docs/screenshots/visao-geral.png)
 
