@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "emulators": "firebase emulators:start --project demo-gastos",
-    "deploy": "npm run build && firebase deploy"
+    "deploy:rules": "firebase deploy --only firestore:rules"
   },
   "dependencies": {
     "date-fns": "^4.4.0",

@@ -5,9 +5,10 @@ Aplicação web para acompanhar as finanças do mês: saldo, gastos por categori
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
-![Firebase](https://img.shields.io/badge/Firebase-Auth%20%C2%B7%20Firestore%20%C2%B7%20Hosting-FFCA28?logo=firebase&logoColor=black)
+![Firebase](https://img.shields.io/badge/Firebase-Auth%20%C2%B7%20Firestore-FFCA28?logo=firebase&logoColor=black)
+![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white)
 
-**▶ [Ver demonstração](https://SEU-PROJETO.web.app/?demo)**: abre o app completo com **dados fictícios**, sem login e sem salvar nada.
+**▶ [Ver demonstração](https://SEU-APP.vercel.app/?demo)**: abre o app completo com **dados fictícios**, sem login e sem salvar nada.
 
 ![Visão geral](docs/screenshots/visao-geral.png)
 
@@ -39,7 +40,8 @@ Aplicação web para acompanhar as finanças do mês: saldo, gastos por categori
 | Build | Vite 8 (Rolldown), com code-splitting de Firebase e gráficos |
 | Gráficos | Recharts |
 | Datas e moeda | date-fns (pt-BR), `Intl.NumberFormat` (BRL) |
-| Backend | Firebase Authentication (Google), Cloud Firestore, Firebase Hosting |
+| Backend | Firebase Authentication (Google), Cloud Firestore |
+| Hospedagem | Vercel (deploy automático a cada push) |
 | Testes | Playwright ponta a ponta contra os Firebase Emulators |
 
 ## Decisões técnicas
@@ -85,9 +87,10 @@ Faça login pela tela do emulador e crie o documento `allowed/<UID>` na interfac
 
 1. No [console do Firebase](https://console.firebase.google.com/), crie um projeto, ative **Authentication → Google** e **Firestore** (modo produção), e registre um app **Web**.
 2. Copie `.env.example` para `.env.local` e preencha com a config do app Web.
-3. Rode `npx firebase login`, `npx firebase use --add` e `npx firebase deploy --only firestore:rules`.
+3. Rode `npx firebase login`, `npx firebase use --add` e `npm run deploy:rules` para publicar as regras do Firestore.
 4. Rode `npm run dev` e entre com Google. A tela "Conta não autorizada" mostra seu UID: crie o documento `allowed/<UID>` no Firestore e recarregue a página.
-5. Para publicar, rode `npm run deploy` (build + Firebase Hosting).
+5. **Vercel**: importe o repositório, cadastre as variáveis `VITE_FIREBASE_*` em *Environment Variables* e faça o deploy.
+6. No Firebase, em *Authentication → Settings → Authorized domains*, adicione o domínio `*.vercel.app` do app.
 
 </details>
 
@@ -103,4 +106,5 @@ src/
   store/reducer.ts         # reducer em memória (demonstração)
   store/demoData.ts        # gerador de dados fictícios
 firestore.rules            # regras de acesso e validação
+vercel.json                # rewrite SPA, cache e cabeçalhos de segurança
 ```
