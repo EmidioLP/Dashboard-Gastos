@@ -1,0 +1,108 @@
+import { getDaysInMonth } from 'date-fns'
+import type { Category, FinanceState, MonthItem, Recurring } from '../types'
+import { parseMonth, today } from './format'
+
+export const isRecurringInMonth = (r: Recurring, month: string) =>
+  r.active && r.startMonth <= month && (!r.endMonth || month <= r.endMonth)
+
+export function getMonthItems(state: FinanceState, month: string): MonthItem[] {
+  const items: MonthItem[] = state.transactions
+    .filter((t) => t.date.startsWith(month))
+    .map((t) => ({
+      key: `t-${t.id}`,
+      source: 'transaction',
+      sourceId: t.id,
+      type: t.type,
+      description: t.description,
+      amount: t.amount,
+      categoryId: t.categoryId,
+      date: t.date,
+      paid: t.paid,
+    }))
+
+  const daysInMonth = getDaysInMonth(parseMonth(month))
+  for (const r of state.recurring) {
+    if (!isRecurringInMonth(r, month)) continue
+    const status = state.recurringStatus[r.id]?.[month]
+    if (status?.skipped) continue
+    const day = String(Math.min(r.dayOfMonth, daysInMonth)).padStart(2, '0')
+    items.push({
+      key: `r-${r.id}-${month}`,
+      source: 'recurring',
+      sourceId: r.id,
+      type: r.type,
+      description: r.description,
+      amount: status?.amountOverride ?? r.amount,
+      categoryId: r.categoryId,
+      date: `${month}-${day}`,
+      paid: status?.paid ?? false,
+    })
+  }
+
+  return items.sort((a, b) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description))
+}
+
+export function getTotals(items: MonthItem[]) {
+  let income = 0
+  let expense = 0
+  let pending = 0
+  let pendingCount = 0
+  for (const i of items) {
+    if (i.type === 'income') income += i.amount
+    else {
+      expense += i.amount
+      if (!i.paid) {
+        pending += i.amount
+        pendingCount++
+      }
+    }
+  }
+  return { income, expense, balance: income - expense, pending, pendingCount }
+}
+
+export interface CategoryTotal {
+  category: Category
+  total: number
+  share: number
+}
+
+export function getExpensesByCategory(items: MonthItem[], categories: Category[]): CategoryTotal[] {
+  const totals = new Map<string, number>()
+  let sum = 0
+  for (const i of items) {
+    if (i.type !== 'expense') continue
+    totals.set(i.categoryId, (totals.get(i.categoryId) ?? 0) + i.amount)
+    sum += i.amount
+  }
+  return [...totals.entries()]
+    .map(([id, total]) => ({
+      category: categories.find((c) => c.id === id) ?? FALLBACK_CATEGORY,
+      total,
+      share: sum ? total / sum : 0,
+    }))
+    .sort((a, b) => b.total - a.total)
+}
+
+export function getDailyExpenses(items: MonthItem[], month: string) {
+  const days = getDaysInMonth(parseMonth(month))
+  const data = Array.from({ length: days }, (_, i) => ({ day: i + 1, total: 0 }))
+  for (const i of items) {
+    if (i.type !== 'expense') continue
+    data[Number(i.date.slice(8, 10)) - 1].total += i.amount
+  }
+  return data
+}
+
+/** Unpaid expenses of the month, soonest first; flags the overdue ones. */
+export function getUpcomingBills(items: MonthItem[]) {
+  const now = today()
+  return items
+    .filter((i) => i.type === 'expense' && !i.paid)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((i) => ({ ...i, overdue: i.date < now }))
+}
+
+export const FALLBACK_CATEGORY: Category = { id: '__none', name: 'Sem categoria', color: '#94a3b8', icon: '❔' }
+
+export const findCategory = (categories: Category[], id: string) =>
+  categories.find((c) => c.id === id) ?? FALLBACK_CATEGORY
