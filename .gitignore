@@ -29,3 +29,6 @@ docs/private/
 
 # vercel
 .vercel/
+
+# claude code
+CLAUDE.md
