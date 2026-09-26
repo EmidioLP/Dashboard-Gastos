@@ -25,10 +25,15 @@ export const formatDay = (date: string) =>
 
 export const uid = () => crypto.randomUUID()
 
-/** Parses "1.234,56", "1234.56" or "1234,5" into a number. */
+/** Parses "1.234,56", "1.500", "1234.56" or "1234,5" into a number. */
 export const parseAmount = (raw: string): number => {
   const s = raw.trim().replace(/[R$\s]/g, '')
   if (!s) return NaN
-  const normalized = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s
+  // without a comma, dots in groups of three are thousands separators ("1.500" is 1500)
+  const normalized = s.includes(',')
+    ? s.replace(/\./g, '').replace(',', '.')
+    : /^[1-9]\d{0,2}(\.\d{3})+$/.test(s)
+      ? s.replace(/\./g, '')
+      : s
   return Number(normalized)
 }

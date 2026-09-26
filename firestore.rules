@@ -44,6 +44,11 @@ service cloud.firestore {
           && request.resource.data.dueDay is int
           && request.resource.data.dueDay >= 1 && request.resource.data.dueDay <= 31;
       }
+      match /settings/meta {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.seenDefaultCategories is list;
+      }
       match /categories/{id} {
         allow read, delete: if isOwner(uid);
         allow create, update: if isOwner(uid)

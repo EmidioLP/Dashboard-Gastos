@@ -25,18 +25,20 @@ export function TransactionsView({ items, filters, onFiltersChange }: Props) {
   const { categories, card } = useFinance()
   const showPayment = !!card || items.some((i) => i.onCard) || filters.payment !== 'all'
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) => onFiltersChange({ ...filters, [key]: value })
+  // a filtered category that was deleted meanwhile counts as "all categories"
+  const categoryId = categories.some((c) => c.id === filters.categoryId) ? filters.categoryId : ''
 
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase()
     return items.filter(
       (i) =>
         (filters.type === 'all' || i.type === filters.type) &&
-        (!filters.categoryId || i.categoryId === filters.categoryId) &&
+        (!categoryId || i.categoryId === categoryId) &&
         (filters.status === 'all' || (filters.status === 'paid') === i.paid) &&
         (filters.payment === 'all' || (filters.payment === 'card') === !!i.onCard) &&
         (!q || i.description.toLowerCase().includes(q)),
     )
-  }, [items, filters])
+  }, [items, filters, categoryId])
 
   const totals = getTotals(filtered)
   const hasFilters = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS)
@@ -55,7 +57,7 @@ export function TransactionsView({ items, filters, onFiltersChange }: Props) {
           <option value="expense">Só despesas</option>
           <option value="income">Só receitas</option>
         </select>
-        <select value={filters.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
+        <select value={categoryId} onChange={(e) => set('categoryId', e.target.value)}>
           <option value="">Todas as categorias</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>

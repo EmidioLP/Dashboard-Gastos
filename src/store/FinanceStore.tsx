@@ -15,6 +15,7 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   setDoc,
@@ -73,6 +74,32 @@ async function commitOps(ops: Op[]) {
 
 const withoutId = <T extends { id: string }>({ id: _id, ...rest }: T) => rest
 
+const metaDoc = (uid: string) => doc(firebase().db, 'users', uid, 'settings', 'meta')
+
+/** Records that the later-added default categories were already offered, so deleting one does not bring it back. */
+const seenDefaultsOp = (uid: string): Op => ({
+  kind: 'set',
+  ref: metaDoc(uid),
+  data: { seenDefaultCategories: ADDED_DEFAULT_CATEGORY_IDS },
+})
+
+/** Creates the default categories added after the account existed, once per account. */
+async function backfillDefaultCategories(uid: string, existing: Set<string>) {
+  const seen = (await getDoc(metaDoc(uid))).data()?.seenDefaultCategories as string[] | undefined
+  if (seen && ADDED_DEFAULT_CATEGORY_IDS.every((id) => seen.includes(id))) return
+  // without the marker the account predates it, and the old code already backfilled the current list
+  const missing = seen
+    ? DEFAULT_CATEGORIES.filter(
+        (c) => ADDED_DEFAULT_CATEGORY_IDS.includes(c.id) && !seen.includes(c.id) && !existing.has(c.id),
+      )
+    : []
+  const { db } = firebase()
+  await commitOps([
+    ...missing.map((c): Op => ({ kind: 'set', ref: doc(db, 'users', uid, 'categories', c.id), data: withoutId(c) })),
+    seenDefaultsOp(uid),
+  ])
+}
+
 export function isFinanceState(value: unknown): value is FinanceState {
   const v = value as FinanceState
   return (
@@ -91,14 +118,17 @@ async function applyAction(uid: string, state: FinanceState, action: Action) {
   const ref = (name: CollectionName, id: string) => doc(db, 'users', uid, name, id)
   const cardRef = doc(db, 'users', uid, 'settings', 'card')
 
-  const seedOps = (): Op[] =>
-    DEFAULT_CATEGORIES.map((c) => ({ kind: 'set', ref: ref('categories', c.id), data: withoutId(c) }))
+  const seedOps = (): Op[] => [
+    ...DEFAULT_CATEGORIES.map((c): Op => ({ kind: 'set', ref: ref('categories', c.id), data: withoutId(c) })),
+    seenDefaultsOp(uid),
+  ]
 
   const wipeOps = async (): Promise<Op[]> => {
     const snaps = await Promise.all(COLLECTIONS.map((name) => getDocs(col(name))))
     return [
       ...snaps.flatMap((s) => s.docs.map((d): Op => ({ kind: 'delete', ref: d.ref }))),
       { kind: 'delete', ref: cardRef },
+      { kind: 'delete', ref: metaDoc(uid) },
     ]
   }
 
@@ -168,6 +198,7 @@ async function applyAction(uid: string, state: FinanceState, action: Action) {
           }),
         ),
         ...(s.card ? [{ kind: 'set', ref: cardRef, data: s.card } as Op] : []),
+        seenDefaultsOp(uid),
       ]
       return commitOps(ops)
     }
@@ -221,12 +252,7 @@ export function FinanceProvider({ uid, children, loading }: ProviderProps) {
           // Existing accounts: create the default categories that were added later.
           if (!snap.empty && !snap.metadata.fromCache && !backfilled.current) {
             backfilled.current = true
-            const existing = new Set(snap.docs.map((d) => d.id))
-            const missing = DEFAULT_CATEGORIES.filter((c) => ADDED_DEFAULT_CATEGORY_IDS.includes(c.id) && !existing.has(c.id))
-            if (missing.length)
-              commitOps(
-                missing.map((c): Op => ({ kind: 'set', ref: doc(db, 'users', uid, 'categories', c.id), data: withoutId(c) })),
-              ).catch(onError)
+            backfillDefaultCategories(uid, new Set(snap.docs.map((d) => d.id))).catch(onError)
           }
           setCategories(snap.docs.map((d) => ({ ...(d.data() as Omit<Category, 'id'>), id: d.id })))
           markLoaded('categories')

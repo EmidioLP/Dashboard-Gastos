@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import type { Category } from '../types'
 import { useDispatch, useFinance, useIsDemo, isFinanceState } from '../store/FinanceStore'
 import { OTHER_CATEGORY_ID } from '../store/defaults'
@@ -35,27 +35,7 @@ function CategoryManager() {
       </header>
       <ul className="category-list">
         {categories.map((c) => (
-          <li key={c.id}>
-            <input
-              className="icon-input"
-              value={c.icon}
-              onChange={(e) => save({ ...c, icon: e.target.value })}
-              aria-label="Ícone (emoji)"
-              maxLength={4}
-            />
-            <input
-              type="color"
-              value={c.color}
-              onChange={(e) => save({ ...c, color: e.target.value })}
-              aria-label="Cor"
-            />
-            <input value={c.name} onChange={(e) => save({ ...c, name: e.target.value })} aria-label="Nome" />
-            {c.id !== OTHER_CATEGORY_ID && (
-              <button className="icon-btn danger" onClick={() => setDeleting(c)} aria-label="Excluir" title="Excluir">
-                🗑
-              </button>
-            )}
-          </li>
+          <CategoryRow key={c.id} category={c} onSave={save} onDelete={() => setDeleting(c)} />
         ))}
       </ul>
 
@@ -86,6 +66,70 @@ function CategoryManager() {
         </Modal>
       )}
     </section>
+  )
+}
+
+interface CategoryRowProps {
+  category: Category
+  onSave: (category: Category) => void
+  onDelete: () => void
+}
+
+/**
+ * Edits are kept locally and saved on blur or Enter: saving on every keystroke would write to the
+ * database each time and re-sort the list (it is ordered by name) while the name is being typed.
+ */
+function CategoryRow({ category, onSave, onDelete }: CategoryRowProps) {
+  // only the fields being edited; the rest follows the saved category (it can change on another device)
+  const [draft, setDraft] = useState<Partial<Category>>({})
+  const shown = { ...category, ...draft }
+
+  const edit = (patch: Partial<Category>) => setDraft((d) => ({ ...d, ...patch }))
+
+  const commit = () => {
+    setDraft({})
+    const next = { ...category, ...draft }
+    next.name = next.name.trim() || category.name // an empty name reverts to the saved one
+    next.icon = next.icon.trim() || category.icon
+    if (next.name !== category.name || next.icon !== category.icon || next.color !== category.color) onSave(next)
+  }
+
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') e.currentTarget.blur()
+  }
+
+  return (
+    <li>
+      <input
+        className="icon-input"
+        value={shown.icon}
+        onChange={(e) => edit({ icon: e.target.value })}
+        onBlur={commit}
+        onKeyDown={onKeyDown}
+        aria-label="Ícone (emoji)"
+        maxLength={8}
+      />
+      <input
+        type="color"
+        value={shown.color}
+        onChange={(e) => edit({ color: e.target.value })}
+        onBlur={commit}
+        aria-label="Cor"
+      />
+      <input
+        value={shown.name}
+        onChange={(e) => edit({ name: e.target.value })}
+        onBlur={commit}
+        onKeyDown={onKeyDown}
+        aria-label="Nome"
+        maxLength={60}
+      />
+      {category.id !== OTHER_CATEGORY_ID && (
+        <button className="icon-btn danger" onClick={onDelete} aria-label="Excluir" title="Excluir">
+          🗑
+        </button>
+      )}
+    </li>
   )
 }
 

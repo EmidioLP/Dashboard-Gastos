@@ -48,17 +48,25 @@ export function EntryForm({ mode, onClose }: Props) {
   const recMonth = mode.kind === 'recurring' ? mode.month : undefined
   const monthStatus = rec && recMonth ? recurringStatus[rec.id]?.[recMonth] : undefined
 
+  // an installment, or a card purchase while no card is configured, is edited by its due date and keeps its card data
+  const keepsDueDate = !!tx && (!!tx.installment || (!!tx.onCard && !card))
+
   const [type, setType] = useState<TxType>(tx?.type ?? rec?.type ?? 'expense')
   const [description, setDescription] = useState(tx?.description ?? rec?.description ?? '')
   const [amount, setAmount] = useState(() => {
     const value = tx?.amount ?? monthStatus?.amountOverride ?? rec?.amount
     return value === undefined ? '' : value.toFixed(2).replace('.', ',')
   })
-  const [categoryId, setCategoryId] = useState(
-    tx?.categoryId ?? rec?.categoryId ?? (categories.find((c) => c.id !== INCOME_CATEGORY_ID)?.id ?? OTHER_CATEGORY_ID),
-  )
+  const [categoryId, setCategoryId] = useState(() => {
+    const id = tx?.categoryId ?? rec?.categoryId
+    if (id === undefined) return categories.find((c) => c.id !== INCOME_CATEGORY_ID)?.id ?? OTHER_CATEGORY_ID
+    // a category deleted meanwhile (or "Renda" on an expense) is not in the select, so it would save a hidden value
+    const offered = categories.some((c) => c.id === id) && (type === 'income' || id !== INCOME_CATEGORY_ID)
+    return offered ? id : OTHER_CATEGORY_ID
+  })
   const [date, setDate] = useState(
-    tx?.purchaseDate ?? tx?.date ?? (mode.kind === 'new' ? defaultDateFor(mode.month) : today()),
+    (keepsDueDate ? tx?.date : tx?.purchaseDate ?? tx?.date) ??
+      (mode.kind === 'new' ? defaultDateFor(mode.month) : today()),
   )
   const [paid, setPaid] = useState(tx?.paid ?? monthStatus?.paid ?? false)
   const [frequency, setFrequency] = useState<Frequency>(
@@ -180,9 +188,9 @@ export function EntryForm({ mode, onClose }: Props) {
       paid,
       installment: tx?.installment,
       createdAt: tx ? tx.createdAt : Date.now(),
-      // an installment keeps its card data; a one-off entry follows the checkbox
-      ...(tx?.installment
-        ? { onCard: tx.onCard, purchaseDate: tx.purchaseDate }
+      // an installment (or a card purchase with no card configured) keeps its card data; a one-off entry follows the checkbox
+      ...(keepsDueDate
+        ? { onCard: tx!.onCard, purchaseDate: tx!.purchaseDate }
         : cardBilling && { onCard: true, purchaseDate: date }),
     }
     if (tx?.installment && applyToAllInstallments) {
@@ -212,8 +220,9 @@ export function EntryForm({ mode, onClose }: Props) {
     { id: 'monthly', label: 'Todo mês' },
   ]
   const amountLabel = isInstallments ? (valueMode === 'total' ? 'Valor total (R$)' : 'Valor da parcela (R$)') : 'Valor (R$)'
-  const dateLabel =
-    cardBilling && frequency !== 'monthly'
+  const dateLabel = keepsDueDate
+    ? 'Vencimento'
+    : cardBilling && frequency !== 'monthly'
       ? 'Data da compra'
       : isInstallments
         ? 'Data da 1ª parcela'
@@ -258,6 +267,7 @@ export function EntryForm({ mode, onClose }: Props) {
           <span>Descrição</span>
           <input
             autoFocus
+            maxLength={200}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={type === 'income' ? 'Ex.: Salário' : 'Ex.: Mercado, Netflix, Geladeira'}
